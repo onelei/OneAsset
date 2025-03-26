@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50d6cea99d3344659c80474e4b43258c, type: 3}
+  m_Name: AssetBundleCollectorSetting
+  m_EditorClassIdentifier: 
+  showPackage: 1
+  showRuleAlias: 0
+  uniqueBundleName: 0
+  enableAddressable: 1
+  locationToLower: 0
+  includeAssetGuid: 0
+  ignoreDefaultType: 1
+  autoCollectShaders: 1
+  packages:
+  - packageName: Package1
+    packageDesc: 1
+    groups:
+    - groupActive: 0
+      groupName: Group1
+      groupDesc: 1
+      tags: 
+      directories:
+      - path: Assets/OneAsset/Samples/Prefabs
+        collectorType: 0
+        addressRuleType: AddressWithoutTopRoot
+        packRuleType: 0
+        filterRuleType: 0
+        args: 
+        tags: 
+      - path: Assets/OneAsset/Samples/Scenes
+        collectorType: 0
+        addressRuleType: AddressWithoutTopRoot
+        packRuleType: 0
+        filterRuleType: 0
+        args: 
+        tags: 
+      - path: 
+        collectorType: 0
+        addressRuleType: AddressWithoutTopRoot
+        packRuleType: 0
+        filterRuleType: 0
+        args: 
+        tags: 
+    - groupActive: 0
+      groupName: Group2
+      groupDesc: 2
+      tags: 
+      directories: []
+  - packageName: Package2
+    packageDesc: 2
+    groups: []

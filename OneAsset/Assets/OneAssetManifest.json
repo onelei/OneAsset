@@ -1,0 +1,56 @@
+{
+    "version": "",
+    "time": 638785181545729019,
+    "packages": [
+        {
+            "name": "Package1",
+            "groups": [
+                {
+                    "name": "Group1",
+                    "bundles": [
+                        {
+                            "name": "assets_oneasset_samples_prefabs",
+                            "hash": "",
+                            "assets": [
+                                {
+                                    "address": "Prefabs/Cube.prefab",
+                                    "assetPath": "Assets/OneAsset/Samples/Prefabs/Cube.prefab",
+                                    "assetGuid": "a2c20505aea6f1c46be0f90e0a66c666",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                }
+                            ],
+                            "depends": []
+                        },
+                        {
+                            "name": "assets_oneasset_samples_scenes",
+                            "hash": "",
+                            "assets": [
+                                {
+                                    "address": "Scenes/SampleScene.unity",
+                                    "assetPath": "Assets/OneAsset/Samples/Scenes/SampleScene.unity",
+                                    "assetGuid": "9fc0d4010bbf28b4594072e72b8655ab",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                }
+                            ],
+                            "depends": []
+                        }
+                    ]
+                },
+                {
+                    "name": "Group2",
+                    "bundles": []
+                }
+            ]
+        },
+        {
+            "name": "Package2",
+            "groups": []
+        }
+    ]
+}
