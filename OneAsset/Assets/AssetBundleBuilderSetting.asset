@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: AssetBundleBuilderSetting
   m_EditorClassIdentifier: 
   packages:
-  - packageName: Package1
-    buildVersion: 2025-03-10-10-49-47
+  - packageName: Bundles
+    buildVersion: 2025-03-27-16-24-41
     buildMode: 0
     encryptKey: 
     compressMode: 0
     nameMode: 0
-  - packageName: Package2
-    buildVersion: 2025-03-10-10-49-50
+  - packageName: Raw
+    buildVersion: 2025-03-27-16-24-41
     buildMode: 0
     encryptKey: 
     compressMode: 0

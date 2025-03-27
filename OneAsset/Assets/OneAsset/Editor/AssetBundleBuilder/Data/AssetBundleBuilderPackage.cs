@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using OneAsset.Runtime;
 using UnityEditor;
 using UnityEngine;
 
@@ -31,7 +32,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Data
 
         public string GetOutputPath()
         {
-            return Path.Combine(Application.dataPath, "../Bundles", packageName);
+            return Path.Combine(OneAssetSetting.GetAssetBundlesRootPath(), packageName);
         }
 
         public BuildTarget GetBuildTarget()

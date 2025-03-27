@@ -11,47 +11,56 @@ namespace OneAsset.Runtime.Loader
     public class AssetBundleLoader : ILoader
     {
         private readonly Dictionary<string, AssetBundle> _loadedAssetBundles = new Dictionary<string, AssetBundle>();
-        
+
+        private BundleInfo GetBundleInfo(string address)
+        {
+            return VirtualManifest.Default.TryGetBundleInfo(address, out var bundleInfo) ? bundleInfo : null;
+        }
+
         public string GetAssetBundleName(string assetName)
         {
             return VirtualManifest.Default.GetBundleNameByAddress(assetName);
         }
 
-        private List<string> GetAllDependsBundleByAssetName(string assetName)
-        {
-            return VirtualManifest.Default.GetAllDependsBundleByAddress(assetName);
-        }
-
         public T LoadAsset<T>(string assetName) where T : UnityEngine.Object
         {
-            var bundleName = GetAssetBundleName(assetName);
-            LoadAssetBundle(bundleName);
-            var depends = GetAllDependsBundleByAssetName(assetName);
-            foreach (var depend in depends)
+            var bundleInfo = GetBundleInfo(assetName);
+            if (bundleInfo == null)
+                return default(T);
+            var bundleName = bundleInfo.name;
+            var packageName = bundleInfo.PackageName;
+            LoadAssetBundle(packageName, bundleName);
+            foreach (var depend in bundleInfo.depends)
             {
-                LoadAssetBundle(depend);
+                LoadAssetBundle(packageName, depend);
             }
-            return LoadAssetSync<T>(bundleName, assetName);
+
+            var assetPath = bundleInfo.GetAssetPath(assetName);
+            return LoadAsset<T>(packageName, bundleName, assetPath);
         }
 
         public async UniTaskVoid LoadAssetAsync<T>(string assetName, Action<T> onComplete) where T : UnityEngine.Object
         {
-            var bundleName = GetAssetBundleName(assetName);
-            await LoadAssetBundleAsync(bundleName);
-            var depends = GetAllDependsBundleByAssetName(assetName);
-            foreach (var depend in depends)
+            var bundleInfo = GetBundleInfo(assetName);
+            var bundleName = bundleInfo.name;
+            var packageName = bundleInfo.PackageName;
+            await LoadAssetBundleAsync(packageName, bundleName);
+            foreach (var depend in bundleInfo.depends)
             {
-                await LoadAssetBundleAsync(depend);
+                await LoadAssetBundleAsync(packageName, depend);
             }
-            LoadAssetAsync(bundleName, assetName, onComplete).Forget();
+
+            var assetPath = bundleInfo.GetAssetPath(assetName);
+            LoadAssetAsync(packageName, bundleName, assetPath, onComplete).Forget();
         }
-        
+
         public void UnloadAsset(string assetName, bool unloadAllLoadedObjects = false)
         {
-            var bundleName = GetAssetBundleName(assetName);
+            var bundleInfo = GetBundleInfo(assetName);
+            var bundleName = bundleInfo.name;
             UnloadAssetBundle(bundleName);
         }
- 
+
         private void UnloadAssetBundle(string bundleName, bool unloadAllLoadedObjects = false)
         {
             if (!_loadedAssetBundles.ContainsKey(bundleName)) return;
@@ -60,15 +69,15 @@ namespace OneAsset.Runtime.Loader
             _loadedAssetBundles.Remove(bundleName);
         }
 
-        // 同步加载 AssetBundle
-        private AssetBundle LoadAssetBundle(string bundleName)
+        // LoadAssetBundle
+        private AssetBundle LoadAssetBundle(string packageName, string bundleName)
         {
             if (_loadedAssetBundles.ContainsKey(bundleName))
             {
                 return _loadedAssetBundles[bundleName];
             }
 
-            var bundlePath = GetAssetBundlePath(bundleName);
+            var bundlePath = GetAssetBundlePath(packageName, bundleName);
             var bundle = AssetBundle.LoadFromFile(bundlePath);
             if (bundle != null)
             {
@@ -78,15 +87,16 @@ namespace OneAsset.Runtime.Loader
             return bundle;
         }
 
-        // 异步加载 AssetBundle
-        private async UniTask<AssetBundle> LoadAssetBundleAsync(string bundleName, CancellationToken cancellationToken = default)
+        // LoadAssetBundleAsync
+        private async UniTask<AssetBundle> LoadAssetBundleAsync(string packageName, string bundleName,
+            CancellationToken cancellationToken = default)
         {
             if (_loadedAssetBundles.ContainsKey(bundleName))
             {
                 return _loadedAssetBundles[bundleName];
             }
 
-            var bundlePath = GetAssetBundlePath(bundleName);
+            var bundlePath = GetAssetBundlePath(packageName, bundleName);
             using (var request = UnityWebRequestAssetBundle.GetAssetBundle(bundlePath))
             {
                 var operation = request.SendWebRequest();
@@ -109,11 +119,11 @@ namespace OneAsset.Runtime.Loader
 
             return null;
         }
-        
-        // 同步加载 Asset
-        private T LoadAssetSync<T>(string bundleName, string assetName) where T : UnityEngine.Object
+
+        // LoadAsset
+        private T LoadAsset<T>(string packageName, string bundleName, string assetName) where T : UnityEngine.Object
         {
-            AssetBundle bundle = LoadAssetBundle(bundleName);
+            AssetBundle bundle = LoadAssetBundle(packageName, bundleName);
             if (bundle != null)
             {
                 return bundle.LoadAsset<T>(assetName);
@@ -121,11 +131,13 @@ namespace OneAsset.Runtime.Loader
 
             return null;
         }
-        
-        // 异步加载 Asset
-        private async UniTaskVoid LoadAssetAsync<T>(string bundleName, string assetName, Action<T> onComplete) where T : UnityEngine.Object
+
+        // LoadAssetAsync
+        private async UniTaskVoid LoadAssetAsync<T>(string packageName, string bundleName, string assetName,
+            Action<T> onComplete)
+            where T : UnityEngine.Object
         {
-            var bundle = await LoadAssetBundleAsync(bundleName);
+            var bundle = await LoadAssetBundleAsync(packageName, bundleName);
             if (bundle != null)
             {
                 var asset = await bundle.LoadAssetAsync<T>(assetName);
@@ -136,31 +148,16 @@ namespace OneAsset.Runtime.Loader
                 onComplete?.Invoke(null);
             }
         }
-         
-        private string GetAssetBundlePath(string bundleName)
-        {
-            // 根据不同平台获取 AssetBundle 路径
-            string platformFolder = GetPlatformFolderForAssetBundles();
-            return $"{Application.streamingAssetsPath}/{platformFolder}/{bundleName}";
-        }
 
-        private string GetPlatformFolderForAssetBundles()
+        private string GetAssetBundlePath(string packageName, string bundleName)
         {
-            switch (Application.platform)
-            {
-                case RuntimePlatform.WindowsPlayer:
-                case RuntimePlatform.WindowsEditor:
-                    return "Windows";
-                case RuntimePlatform.OSXPlayer:
-                case RuntimePlatform.OSXEditor:
-                    return "OSX";
-                case RuntimePlatform.Android:
-                    return "Android";
-                case RuntimePlatform.IPhonePlayer:
-                    return "iOS";
-                default:
-                    return string.Empty;
-            }
+#if UNITY_EDITOR
+            return $"{OneAssetSetting.GetAssetBundlesRootPath()}/{packageName}/{bundleName}";
+
+#else
+            return $"{Application.streamingAssetsPath}/{OneAssetSetting.GetPlatformFolderForAssetBundles()}/{packageName}/{bundleName}";
+
+#endif
         }
     }
 }

@@ -21,12 +21,12 @@ MonoBehaviour:
   ignoreDefaultType: 1
   autoCollectShaders: 1
   packages:
-  - packageName: Package1
-    packageDesc: 1
+  - packageName: Bundles
+    packageDesc: AB Resource
     groups:
     - groupActive: 0
-      groupName: Group1
-      groupDesc: 1
+      groupName: UI
+      groupDesc: UI Prefab
       tags: 
       directories:
       - path: Assets/OneAsset/Samples/Prefabs
@@ -51,10 +51,17 @@ MonoBehaviour:
         args: 
         tags: 
     - groupActive: 0
-      groupName: Group2
-      groupDesc: 2
+      groupName: Icon
+      groupDesc: UI Icon
       tags: 
-      directories: []
-  - packageName: Package2
-    packageDesc: 2
+      directories:
+      - path: Assets/OneAsset/Samples/Sprites/UI/UISample
+        collectorType: MainCollector
+        addressRuleType: AddressWithoutTopRoot
+        packRuleType: SmartPackDirectory
+        filterRuleType: CollectorAll
+        args: 
+        tags: 
+  - packageName: Raw
+    packageDesc: Origin Resource
     groups: []

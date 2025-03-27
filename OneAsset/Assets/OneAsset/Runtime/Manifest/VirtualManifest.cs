@@ -30,6 +30,7 @@ namespace OneAsset.Runtime.Manifest
                         {
                             foreach (var assetInfo in bundleAsset.assets)
                             {
+                                bundleAsset.PackageName = package.name;
                                 AssetBundles.Add(assetInfo.address, bundleAsset);
                             }
                         }
@@ -54,15 +55,16 @@ namespace OneAsset.Runtime.Manifest
         }
 
         private static readonly Dictionary<string, BundleInfo> AssetBundles = new Dictionary<string, BundleInfo>();
+
+        public bool TryGetBundleInfo(string address, out BundleInfo bundleInfo) =>
+            AssetBundles.TryGetValue(address, out bundleInfo);
+        
+        
         public string GetAssetPathByAddress(string address)
         {
             if (AssetBundles.TryGetValue(address, out var bundleInfo))
             {
-                foreach (var assetInfo in bundleInfo.assets)
-                {
-                    if (assetInfo.address == address)
-                        return assetInfo.assetPath;
-                }
+                return bundleInfo.GetAssetPath(address);
             }
 
             OneAssetLogger.LogWarning($"Can not get bundle name: {address}");
@@ -109,10 +111,23 @@ namespace OneAsset.Runtime.Manifest
     [Serializable]
     public class BundleInfo
     {
+        [NonSerialized]public string PackageName;
         public string name;
         public string hash;
         public List<AssetInfo> assets = new List<AssetInfo>();
         public List<string> depends = new List<string>();
+        
+        public string GetAssetPath(string address)
+        {
+            foreach (var assetInfo in assets)
+            {
+                if (assetInfo.address == address)
+                    return assetInfo.assetPath;
+            }
+
+            OneAssetLogger.LogWarning($"Can not get bundle name: {address}");
+            return address;
+        }
     }
 
     [Serializable]
