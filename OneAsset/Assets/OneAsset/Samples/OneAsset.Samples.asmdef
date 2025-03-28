@@ -1,0 +1,15 @@
+{
+    "name": "OneAsset.Samples",
+    "references": [
+        "GUID:7a90861008c57204386bbcb17c3f2d1f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

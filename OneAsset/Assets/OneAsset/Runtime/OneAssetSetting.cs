@@ -12,7 +12,7 @@ namespace OneAsset.Runtime
             return Path.Combine(Application.dataPath, $"../Bundles/{GetPlatformFolderForAssetBundles()}");
         }
 
-        private static string GetPlatformFolderForAssetBundles()
+        public static string GetPlatformFolderForAssetBundles()
         {
             switch (Application.platform)
             {

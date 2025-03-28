@@ -1,0 +1,17 @@
+{
+    "name": "OneAsset.Editor",
+    "references": [
+        "GUID:7a90861008c57204386bbcb17c3f2d1f"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

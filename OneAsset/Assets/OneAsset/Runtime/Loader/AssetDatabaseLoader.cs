@@ -8,10 +8,6 @@ namespace OneAsset.Runtime.Loader
 {
     public class AssetDatabaseLoader : ILoader
     {
-        public string GetAssetBundleName(string address)
-        {
-            return VirtualManifest.Default.GetBundleNameByAddress(address);
-        }
 
         public T LoadAsset<T>(string address) where T : UnityEngine.Object
         {

@@ -5,12 +5,12 @@ namespace OneAsset.Samples
 {
     public class Sample : MonoBehaviour
     {
-        public EPlayMode PlayMode;
+        public EPlayMode playMode;
 
         public void Start()
         {
             //Init
-            OneAssets.Init(PlayMode);
+            OneAssets.Init(playMode);
             
             //Sync
             var assetPath = "Prefabs/UI_Sample.prefab";
@@ -30,7 +30,8 @@ namespace OneAsset.Samples
                     (spriteAssetAsync) => { uiSample.GetComponent<UISample>().SetIcon(spriteAssetAsync); });
             });
             //Unload
-            //OneAssets.UnloadAsset(assetPath);
+            // OneAssets.UnloadAsset(assetPath);
+            // OneAssets.UnloadAsset(spritePath);
         }
     }
 }

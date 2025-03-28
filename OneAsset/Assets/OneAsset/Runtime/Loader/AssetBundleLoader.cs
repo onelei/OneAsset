@@ -17,11 +17,6 @@ namespace OneAsset.Runtime.Loader
             return VirtualManifest.Default.TryGetBundleInfo(address, out var bundleInfo) ? bundleInfo : null;
         }
 
-        public string GetAssetBundleName(string assetName)
-        {
-            return VirtualManifest.Default.GetBundleNameByAddress(assetName);
-        }
-
         public T LoadAsset<T>(string assetName) where T : UnityEngine.Object
         {
             var bundleInfo = GetBundleInfo(assetName);
@@ -54,14 +49,14 @@ namespace OneAsset.Runtime.Loader
             LoadAssetAsync(packageName, bundleName, assetPath, onComplete).Forget();
         }
 
-        public void UnloadAsset(string assetName, bool unloadAllLoadedObjects = false)
+        public void UnloadAsset(string assetName, bool unloadAllLoadedObjects = true)
         {
             var bundleInfo = GetBundleInfo(assetName);
             var bundleName = bundleInfo.name;
             UnloadAssetBundle(bundleName);
         }
 
-        private void UnloadAssetBundle(string bundleName, bool unloadAllLoadedObjects = false)
+        private void UnloadAssetBundle(string bundleName, bool unloadAllLoadedObjects = true)
         {
             if (!_loadedAssetBundles.ContainsKey(bundleName)) return;
             var bundle = _loadedAssetBundles[bundleName];
@@ -153,10 +148,8 @@ namespace OneAsset.Runtime.Loader
         {
 #if UNITY_EDITOR
             return $"{OneAssetSetting.GetAssetBundlesRootPath()}/{packageName}/{bundleName}";
-
 #else
             return $"{Application.streamingAssetsPath}/{OneAssetSetting.GetPlatformFolderForAssetBundles()}/{packageName}/{bundleName}";
-
 #endif
         }
     }
