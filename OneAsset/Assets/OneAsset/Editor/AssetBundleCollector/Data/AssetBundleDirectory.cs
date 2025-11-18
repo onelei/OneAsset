@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using OneAsset.Editor.AssetBundleCollector.Rule;
+using OneAsset.Runtime;
 using UnityEditor;
 
 namespace OneAsset.Editor.AssetBundleCollector.Data
@@ -11,7 +12,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Data
     {
         public string path;
         public string collectorType = nameof(MainCollector);
-        public string addressRuleType = nameof(AddressWithoutTopRoot);
+        public string addressRuleType = nameof(AddressDisable);
         public string packRuleType = nameof(SmartPackDirectory);
         public string filterRuleType = nameof(CollectorAll);
         public string args = string.Empty;
@@ -67,15 +68,23 @@ namespace OneAsset.Editor.AssetBundleCollector.Data
             _assets.Clear();
             if (!string.IsNullOrEmpty(path))
             {
-                var filePaths = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories);
-                foreach (var filePath in filePaths)
+                try
                 {
-                    if (IsValidAsset(filePath))
+                    var filePaths = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories);
+                    foreach (var filePath in filePaths)
                     {
-                        var fixPath = filePath.Replace("\\", "/");
-                        _assets.Add(fixPath);
+                        if (IsValidAsset(filePath))
+                        {
+                            var fixPath = filePath.Replace("\\", "/");
+                            _assets.Add(fixPath);
+                        }
                     }
                 }
+                catch (Exception e)
+                {
+                    OneAssetLogger.LogWarning(e.Message);
+                }
+                
             }
 
             return _assets;

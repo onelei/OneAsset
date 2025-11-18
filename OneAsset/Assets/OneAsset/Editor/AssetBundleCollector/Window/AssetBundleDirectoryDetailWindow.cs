@@ -7,8 +7,9 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
 {
     public class AssetBundleDirectoryDetailWindow : BaseEditorWindow
     {
-        public static void Open(AssetBundleDirectory directory)
+        public static void Open(string groupName, AssetBundleDirectory directory)
         {
+            _groupName = groupName;
             _directory = directory;
             var window = GetWindow<AssetBundleDirectoryDetailWindow>("Directory Detail", true);
             window.minSize = new Vector2(600, 600);
@@ -16,6 +17,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         }
 
         private static bool _isInit = false;
+        private static string _groupName;
         private static AssetBundleDirectory _directory;
         private Vector2 _scrollPosition;
         private AssetBundleDirectoryDetailTreeView _treeView;
@@ -24,7 +26,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         {
             base.OnInit();
             _treeView = new AssetBundleDirectoryDetailTreeView();
-            _treeView.SetData(_directory);
+            _treeView.SetData(_groupName,_directory);
             _isInit = true;
         }
 

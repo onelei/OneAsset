@@ -1,5 +1,4 @@
-﻿using System.IO;
-
+﻿
 namespace OneAsset.Editor.AssetBundleCollector.Rule
 {
     public interface IFilterRule

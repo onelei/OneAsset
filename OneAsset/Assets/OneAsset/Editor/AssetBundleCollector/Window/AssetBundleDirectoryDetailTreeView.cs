@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using OneAsset.Editor.AssetBundleCollector.Data;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
@@ -24,7 +23,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         private readonly List<TreeViewItem> _items = new List<TreeViewItem>();
         private readonly Dictionary<int, TreeViewItem> _itemsMap = new Dictionary<int, TreeViewItem>();
         private AssetBundleDirectory _directory;
-        
+
         public AssetBundleDirectoryDetailTreeView() : base(new TreeViewState())
         {
             showAlternatingRowBackgrounds = true;
@@ -33,19 +32,22 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             Reload();
         }
 
-        public void SetData(AssetBundleDirectory data)
+        public void SetData(string groupName, AssetBundleDirectory data)
         {
             if (data == null)
                 return;
             _directory = data;
             _items.Clear();
             _itemsMap.Clear();
-            var assets = data.GetMainAssets();
-            for (var i = 0; i < assets.Count; i++)
+            var mainAssets = data.GetMainAssets();
+            var rule = data.GetAddressRule();
+
+            for (var i = 0; i < mainAssets.Count; i++)
             {
-                var package = assets[i];
+                var assetPath = mainAssets[i];
                 var id = i + 1;
-                var item = new AssetBundleDirectoryDetailTreeViewItem(id, package);
+                var address = rule.GetAddress(groupName, assetPath);
+                var item = new AssetBundleDirectoryDetailTreeViewItem(id, $"[{address}] {assetPath}");
                 _itemsMap.Add(id, item);
                 _items.Add(item);
             }

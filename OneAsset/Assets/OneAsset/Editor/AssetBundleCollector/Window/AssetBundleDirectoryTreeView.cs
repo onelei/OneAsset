@@ -10,6 +10,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
     internal sealed class AssetBundleDirectoryTreeViewItem : TreeViewItem
     {
         public readonly int Index;
+        private string _groupName;
         public readonly AssetBundleDirectory Data;
         public int AddressRuleTypeIndex;
         public int CollectorRuleTypeIndex;
@@ -19,23 +20,36 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         public bool IsFoldout = false;
         public List<string> Assets;
 
-        public AssetBundleDirectoryTreeViewItem(int index, AssetBundleDirectory group)
+        public AssetBundleDirectoryTreeViewItem(int index, string groupName, AssetBundleDirectory directory)
         {
             this.Index = index;
-            Data = group;
+            _groupName = groupName;
+            Data = directory;
             AddressRuleTypeIndex = RuleUtility.GetAddressRuleIndex(Data.addressRuleType);
             CollectorRuleTypeIndex = RuleUtility.GetCollectorRuleIndex(Data.collectorType);
             PackRuleTypeIndex = RuleUtility.GetPackRuleIndex(Data.packRuleType);
             FilterRuleTypeIndex = RuleUtility.GetFilterRuleIndex(Data.filterRuleType);
             id = index;
-            displayName = group.path;
+            displayName = directory.path;
             depth = 0;
             if (!string.IsNullOrEmpty(Data.path))
             {
                 PathAsset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(Data.path);
             }
 
-            Assets = Data.GetMainAssets();
+            Refresh();
+        }
+
+        public void Refresh()
+        {
+            var mainAssets = Data.GetMainAssets();
+            var rule = Data.GetAddressRule();
+            Assets = new List<string>(mainAssets.Count);
+            foreach (var assetPath in mainAssets)
+            {
+                var address = rule.GetAddress(_groupName, assetPath);
+                Assets.Add($"[{address}] {assetPath}");
+            }
         }
     }
 
@@ -63,7 +77,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             {
                 var package = _group.directories[i];
                 var id = i + 1;
-                var item = new AssetBundleDirectoryTreeViewItem(id, package);
+                var item = new AssetBundleDirectoryTreeViewItem(id, _group.groupName, package);
                 _items.Add(item);
             }
 
@@ -155,7 +169,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                 if (item.PathAsset != null)
                 {
                     item.Data.path = AssetDatabase.GetAssetPath(item.PathAsset);
-                    item.Assets = item.Data.GetMainAssets();
+                    item.Refresh();
                 }
             }
 
@@ -227,7 +241,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             rect.width = 20;
             if (GUI.Button(rect, "?"))
             {
-                AssetBundleDirectoryDetailWindow.Open(item.Data);
+                AssetBundleDirectoryDetailWindow.Open(_group.groupName, item.Data);
             }
 
             //Assets

@@ -1,0 +1,16 @@
+{
+    "name": "OneAsset.Samples.Editor",
+    "references": [
+        "GUID:ee7fe00cab216ff469dfef2f8e41d1de",
+        "GUID:51339f16b354c15418e52738a7d0e976"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

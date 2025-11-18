@@ -53,11 +53,13 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                     }
                 }
             };
-            _directoryTreeView = new AssetBundleDirectoryTreeView
+            _directoryTreeView = new AssetBundleDirectoryTreeView();
+            _packageTreeView?.SetData(_setting.packages);
+            //Default
+            if (_setting.packages.Count > 0)
             {
-                //OnSelectedChange = 
-            };
-            RefreshPackage();
+                _groupTreeView.SetData(_setting.packages[0]);
+            }
         }
 
         protected override void OnUpdate()
@@ -101,18 +103,22 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             EditorGUILayout.BeginHorizontal();
             {
                 //Package
-                EditorGUILayout.BeginVertical(GUILayout.Width(150));
+                if (_setting.showPackage)
                 {
-                    EditorGUILayout.LabelField("Packages");
-                    DrawHorizontalLine();
-                    var treeViewRect =
-                        EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                    EditorGUILayout.BeginVertical(GUILayout.Width(150));
                     {
-                        _packageTreeView.OnGUI(treeViewRect);
+                        EditorGUILayout.LabelField("Packages");
+                        DrawHorizontalLine();
+                        var treeViewRect =
+                            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                        {
+                            _packageTreeView.OnGUI(treeViewRect);
+                        }
+                        EditorGUILayout.EndVertical();
                     }
                     EditorGUILayout.EndVertical();
                 }
-                EditorGUILayout.EndVertical();
+
                 //Groups
                 DrawVerticalLine();
                 EditorGUILayout.BeginVertical(GUILayout.Width(150));
@@ -145,12 +151,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndScrollView();
         }
-
-        private void RefreshPackage()
-        {
-            _packageTreeView?.SetData(_setting.packages);
-        }
-
+ 
         private void Save()
         {
             //Save 
@@ -194,7 +195,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                                 assetGuid = AssetDatabase.AssetPathToGUID(assetPath),
                                 assetTags = directory.tags.Split(',').ToList(),
                                 bundleId = 0,
-                                address = addressRule?.GetAddress(package.packageName, group.groupName, assetPath),
+                                address = addressRule?.GetAddress(group.groupName, assetPath),
                             };
                             bundleInfo.assets.Add(assetInfo);
                         }
@@ -215,12 +216,12 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             }
             catch (Exception e)
             {
-                Runtime.OneAssetLogger.LogError(e.Message);
+                OneAssetLogger.LogError(e.Message);
             }
             finally
             {
                 AssetDatabase.Refresh();
-                Runtime.OneAssetLogger.Log($"Save Successful: {outputPath}");
+                OneAssetLogger.Log($"Save Successful: {outputPath}");
             }
         }
     }
