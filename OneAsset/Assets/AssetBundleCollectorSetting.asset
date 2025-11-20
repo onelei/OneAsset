@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   showPackage: 1
   showRuleAlias: 0
-  uniqueBundleName: 0
-  enableAddressable: 1
+  uniqueBundleName: 1
+  enableAddressable: 0
   locationToLower: 0
   includeAssetGuid: 0
   ignoreDefaultType: 1
@@ -29,21 +29,14 @@ MonoBehaviour:
       groupDesc: UI Prefab
       tags: 
       directories:
-      - path: Assets/OneAsset/Samples/Prefabs
+      - path: Assets/OneAsset/Samples/Runtime/Prefabs
         collectorType: 0
         addressRuleType: AddressWithoutTopRoot
         packRuleType: 0
         filterRuleType: 0
         args: 
         tags: 
-      - path: Assets/OneAsset/Samples/Scenes
-        collectorType: 0
-        addressRuleType: AddressWithoutTopRoot
-        packRuleType: 0
-        filterRuleType: 0
-        args: 
-        tags: 
-      - path: 
+      - path: Assets/OneAsset/Samples/Runtime/Scenes
         collectorType: 0
         addressRuleType: AddressWithoutTopRoot
         packRuleType: 0
@@ -55,7 +48,7 @@ MonoBehaviour:
       groupDesc: UI Icon
       tags: 
       directories:
-      - path: Assets/OneAsset/Samples/Sprites/UI/UISample
+      - path: Assets/OneAsset/Samples/Runtime/Sprites/UI/UISample
         collectorType: MainCollector
         addressRuleType: AddressWithoutTopRoot
         packRuleType: SmartPackDirectory

@@ -35,15 +35,18 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             var manifestInfo = pipelineData.CustomVirtualManifest;
             foreach (var package in manifestInfo.packages)
             {
-                foreach (var group in package.groups)
+                if (packageName == package.name)
                 {
-                    foreach (var bundleAsset in group.bundles)
+                    foreach (var group in package.groups)
                     {
-                        var assetBundleName = bundleAsset.name;
-                        bundleAsset.hash = unityManifest.GetAssetBundleHash(assetBundleName).ToString();
-                        bundleAsset.depends.Clear();
-                        var depends = unityManifest.GetAllDependencies(assetBundleName);
-                        bundleAsset.depends.AddRange(depends);
+                        foreach (var bundleAsset in group.bundles)
+                        {
+                            var assetBundleName = bundleAsset.name;
+                            bundleAsset.hash = unityManifest.GetAssetBundleHash(assetBundleName).ToString();
+                            bundleAsset.depends.Clear();
+                            var depends = unityManifest.GetAllDependencies(assetBundleName);
+                            bundleAsset.depends.AddRange(depends);
+                        }
                     }
                 }
             }

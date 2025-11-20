@@ -16,6 +16,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             {
                 new BeginPipeline(),
                 new BuildBundlePipeline(),
+                new EntryptBundlePipeline(),
                 new EndPipeline(),
             };
         }
@@ -32,6 +33,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
                     pipeline.Run(pipelineData);
                 }
             }
+
             stopWatch.Stop();
             AssetDatabase.Refresh();
             OneAssetLogger.Log($"Build Pipeline Finish, TotalMinutes = {stopWatch.Elapsed.TotalMinutes}");
