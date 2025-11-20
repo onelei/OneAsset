@@ -16,6 +16,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             {
                 new BeginPipeline(),
                 new BuildBundlePipeline(),
+                new BuildReportPipeline(),
                 new EntryptBundlePipeline(),
                 new EndPipeline(),
             };
