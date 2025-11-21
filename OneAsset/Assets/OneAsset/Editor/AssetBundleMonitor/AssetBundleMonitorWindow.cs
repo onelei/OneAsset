@@ -45,7 +45,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         private void Update()
         {
             // Auto refresh
-            if (_autoRefresh && AssetBundleMonitor.Instance.IsRecording)
+            if (_autoRefresh && AssetBundleMonitor.IsRecording)
             {
                 if (EditorApplication.timeSinceStartup - _lastRefreshTime > AutoRefreshInterval)
                 {
@@ -137,7 +137,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             {
-                var isRecording = AssetBundleMonitor.Instance.IsRecording;
+                var isRecording = AssetBundleMonitor.IsRecording;
                 
                 // Start/Stop button
                 GUI.backgroundColor = isRecording ? Color.red : Color.green;
@@ -146,12 +146,12 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 {
                     if (isRecording)
                     {
-                        AssetBundleMonitor.Instance.StopRecording();
+                        AssetBundleMonitor.StopRecording();
                         RefreshData();
                     }
                     else
                     {
-                        AssetBundleMonitor.Instance.StartRecording();
+                        AssetBundleMonitor.StartRecording();
                         RefreshData();
                     }
                 }
@@ -162,7 +162,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 {
                     if (EditorUtility.DisplayDialog("Confirm", "Clear all recorded data?", "OK", "Cancel"))
                     {
-                        AssetBundleMonitor.Instance.ClearSession();
+                        AssetBundleMonitor.ClearSession();
                         RefreshData();
                     }
                 }
@@ -194,7 +194,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         /// </summary>
         private void DrawSummarySection()
         {
-            var session = AssetBundleMonitor.Instance.CurrentSession;
+            var session = AssetBundleMonitor.CurrentSession;
             if (session == null)
             {
                 EditorGUILayout.HelpBox("No monitoring data available. Click 'Start' to begin monitoring.", MessageType.Info);
@@ -251,7 +251,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 GUILayout.Label("Load Record List", _headerStyle);
                 GUILayout.FlexibleSpace();
                 
-                var session = AssetBundleMonitor.Instance.CurrentSession;
+                var session = AssetBundleMonitor.CurrentSession;
                 if (session != null)
                 {
                     GUILayout.Label($"Total: {session.records.Count}", EditorStyles.miniLabel);
@@ -260,42 +260,39 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 
                 EditorGUILayout.Space(5);
                 
-                EditorGUILayout.BeginHorizontal();
+                // Record list (上部)
+                EditorGUILayout.BeginVertical();
                 {
-                    // Left: Record list
-                    EditorGUILayout.BeginVertical(GUILayout.Width(position.width * 0.7f));
+                    // Search box
+                    EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
                     {
-                        // Search box
-                        EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-                        {
-                            var searchString = _recordSearchField.OnToolbarGUI(_recordTreeView.searchString);
-                            _recordTreeView.searchString = searchString;
-                        }
-                        EditorGUILayout.EndHorizontal();
-                        
-                        // TreeView
-                        var rect = GUILayoutUtility.GetRect(0, position.height - 200, GUILayout.ExpandWidth(true));
-                        _recordTreeView.OnGUI(rect);
+                        var searchString = _recordSearchField.OnToolbarGUI(_recordTreeView.searchString);
+                        _recordTreeView.searchString = searchString;
                     }
-                    EditorGUILayout.EndVertical();
+                    EditorGUILayout.EndHorizontal();
                     
-                    EditorGUILayout.Space(10);
-                    
-                    // Right: Detail info
-                    EditorGUILayout.BeginVertical();
-                    {
-                        if (_selectedRecord != null)
-                        {
-                            DrawRecordDetails(_selectedRecord);
-                        }
-                        else
-                        {
-                            EditorGUILayout.HelpBox("Select a record from the left to view details", MessageType.Info);
-                        }
-                    }
-                    EditorGUILayout.EndVertical();
+                    // TreeView - 计算合适的高度
+                    float recordListHeight = Mathf.Max(200, (position.height - 300) * 0.5f);
+                    var rect = GUILayoutUtility.GetRect(0, recordListHeight, GUILayout.ExpandWidth(true));
+                    _recordTreeView.OnGUI(rect);
                 }
-                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+                
+                EditorGUILayout.Space(10);
+                
+                // Record details (下部)
+                EditorGUILayout.BeginVertical();
+                {
+                    if (_selectedRecord != null)
+                    {
+                        DrawRecordDetails(_selectedRecord);
+                    }
+                    else
+                    {
+                        EditorGUILayout.HelpBox("Select a record from the list above to view details", MessageType.Info);
+                    }
+                }
+                EditorGUILayout.EndVertical();
             }
             EditorGUILayout.EndVertical();
         }
@@ -402,7 +399,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         /// </summary>
         private void RefreshData()
         {
-            var records = AssetBundleMonitor.Instance.GetAllRecords();
+            var records = AssetBundleMonitor.GetAllRecords();
             _recordTreeView.SetRecords(records);
             
             // Clear selection if selected record no longer exists

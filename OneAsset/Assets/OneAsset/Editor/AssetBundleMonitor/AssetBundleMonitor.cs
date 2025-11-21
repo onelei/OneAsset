@@ -11,52 +11,62 @@ namespace OneAsset.Editor.AssetBundleMonitor
     /// AssetBundle load monitor (Editor only)
     /// Subscribes to AssetBundleLoader events to monitor bundle loading
     /// </summary>
-    public class AssetBundleMonitor
+    public static class AssetBundleMonitor
     {
-        private static AssetBundleMonitor _instance;
-        public static AssetBundleMonitor Instance => _instance ?? (_instance = new AssetBundleMonitor());
+        // EditorPrefs 键名，用于在域重载后恢复状态
+        private const string PrefKeyShouldRecord = "AssetBundleMonitor_ShouldRecord";
 
-        public MonitorSessionData CurrentSession { get; private set; }
-        public bool IsRecording => CurrentSession != null && CurrentSession.isRecording;
-        
-        private readonly Dictionary<string, AssetBundleRecord> _loadingBundles = new Dictionary<string, AssetBundleRecord>();
-        private readonly Dictionary<string, int> _bundleReferenceCounts = new Dictionary<string, int>();
-        
+        // 录制标记：在编辑器下点击 Start 设置为 true，运行时根据此标记决定是否记录
+        private static bool _shouldRecord = false;
+
+        // 会话数据
+        private static MonitorSessionData _currentSession;
+
+        private static readonly Dictionary<string, AssetBundleRecord> _loadingBundles =
+            new Dictionary<string, AssetBundleRecord>();
+
+        private static readonly Dictionary<string, int> _bundleReferenceCounts = new Dictionary<string, int>();
+
         // 标记是否已经订阅事件，防止重复订阅
         private static bool _isSubscribed = false;
-        
-        private AssetBundleMonitor()
-        {
-            EnsureSubscribed();
-        }
-        
-        ~AssetBundleMonitor()
-        {
-            UnsubscribeFromEvents();
-        }
-        
+
+        public static MonitorSessionData CurrentSession => _currentSession;
+        public static bool IsRecording => _shouldRecord;
+
         /// <summary>
         /// 编辑器初始化时自动订阅事件（处理域重载）
         /// </summary>
         [InitializeOnLoadMethod]
         private static void InitializeOnLoad()
         {
-            // 域重载后重新订阅事件
-            EnsureSubscribed();
-            
-            // 监听 Play Mode 状态变化，确保在进入/退出 Play Mode 时事件订阅依然有效
+            // 从 EditorPrefs 恢复录制状态（解决域重载后状态丢失问题）
+            _shouldRecord = EditorPrefs.GetBool(PrefKeyShouldRecord, false);
+            if (_shouldRecord)
+            {
+                StartRecording();
+            }
+
+            AssetBundleLoader.OnBundleLoadStart += OnBundleLoadStart;
+            AssetBundleLoader.OnBundleLoadSuccess += OnBundleLoadSuccess;
+            AssetBundleLoader.OnBundleLoadFailed += OnBundleLoadFailed;
+            AssetBundleLoader.OnBundleUnload += OnBundleUnload;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
         }
-        
+
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            // 在进入 Play Mode 后重新确保订阅
-            if (state == PlayModeStateChange.EnteredPlayMode || state == PlayModeStateChange.EnteredEditMode)
+            if (state == PlayModeStateChange.ExitingPlayMode && _shouldRecord)
             {
-                EnsureSubscribed();
+                AssetBundleLoader.OnBundleLoadStart -= OnBundleLoadStart;
+                AssetBundleLoader.OnBundleLoadSuccess -= OnBundleLoadSuccess;
+                AssetBundleLoader.OnBundleLoadFailed -= OnBundleLoadFailed;
+                AssetBundleLoader.OnBundleUnload -= OnBundleUnload;
+
+                StopRecording();
+                Debug.Log($"[AssetBundle Monitor] Stopped recording, total records: {_currentSession.records.Count}");
             }
         }
-        
+
         /// <summary>
         /// 确保已订阅事件（防止域重载导致订阅丢失）
         /// </summary>
@@ -64,106 +74,87 @@ namespace OneAsset.Editor.AssetBundleMonitor
         {
             if (_isSubscribed)
                 return;
-                
-            AssetBundleLoader.OnBundleLoadStart += OnBundleLoadStartStatic;
-            AssetBundleLoader.OnBundleLoadSuccess += OnBundleLoadSuccessStatic;
-            AssetBundleLoader.OnBundleLoadFailed += OnBundleLoadFailedStatic;
-            AssetBundleLoader.OnBundleUnload += OnBundleUnloadStatic;
-            
+
+            AssetBundleLoader.OnBundleLoadStart += OnBundleLoadStart;
+            AssetBundleLoader.OnBundleLoadSuccess += OnBundleLoadSuccess;
+            AssetBundleLoader.OnBundleLoadFailed += OnBundleLoadFailed;
+            AssetBundleLoader.OnBundleUnload += OnBundleUnload;
+
             _isSubscribed = true;
         }
-        
-        private static void UnsubscribeFromEvents()
+
+        /// <summary>
+        /// 开始录制（仅设置标记，实际录制在运行时开始）
+        /// </summary>
+        public static void StartRecording()
         {
-            if (!_isSubscribed)
-                return;
-                
-            AssetBundleLoader.OnBundleLoadStart -= OnBundleLoadStartStatic;
-            AssetBundleLoader.OnBundleLoadSuccess -= OnBundleLoadSuccessStatic;
-            AssetBundleLoader.OnBundleLoadFailed -= OnBundleLoadFailedStatic;
-            AssetBundleLoader.OnBundleUnload -= OnBundleUnloadStatic;
-            
-            _isSubscribed = false;
-        }
-        
-        public void StartRecording()
-        {
-            if (IsRecording)
+            _shouldRecord = true;
+            EditorPrefs.SetBool(PrefKeyShouldRecord, true); // 保存到 EditorPrefs
+
+            // 如果已经在运行模式，立即开始录制
+            if (EditorApplication.isPlaying)
             {
-                Debug.LogWarning("[AssetBundle Monitor] Already recording");
-                return;
+                CreateSession();
             }
-            
-            CurrentSession = new MonitorSessionData
+            else
             {
-                sessionStartTime = DateTime.Now,
-                isRecording = true
-            };
-            
-            _loadingBundles.Clear();
-            _bundleReferenceCounts.Clear();
-            
-            Debug.Log("[AssetBundle Monitor] Started recording");
+                Debug.Log("[AssetBundle Monitor] Marked for recording, will start when entering Play Mode");
+            }
         }
-        
-        public void StopRecording()
+
+        /// <summary>
+        /// 停止录制
+        /// </summary>
+        public static void StopRecording()
         {
-            if (!IsRecording)
+            if (!_shouldRecord)
             {
                 Debug.LogWarning("[AssetBundle Monitor] Not recording");
                 return;
             }
-            
-            CurrentSession.sessionEndTime = DateTime.Now;
-            CurrentSession.isRecording = false;
-            
-            Debug.Log($"[AssetBundle Monitor] Stopped recording, total records: {CurrentSession.records.Count}");
+
+            _shouldRecord = false;
+            EditorPrefs.SetBool(PrefKeyShouldRecord, false); // 保存到 EditorPrefs
+
+            if (_currentSession != null)
+            {
+                _currentSession.sessionEndTime = DateTime.Now;
+                _currentSession.isRecording = false;
+                Debug.Log($"[AssetBundle Monitor] Stopped recording, total records: {_currentSession.records.Count}");
+            }
         }
-        
-        public void ClearSession()
+
+        private static void CreateSession()
         {
-            CurrentSession = null;
+            if (_currentSession != null)
+                return;
+            _currentSession = new MonitorSessionData
+            {
+                sessionStartTime = DateTime.Now,
+                isRecording = true
+            };
+            _loadingBundles.Clear();
+            _bundleReferenceCounts.Clear();
+            Debug.Log("[AssetBundle Monitor] Started recording immediately");
+        }
+
+        /// <summary>
+        /// 清空会话数据
+        /// </summary>
+        public static void ClearSession()
+        {
+            _shouldRecord = false;
+            EditorPrefs.SetBool(PrefKeyShouldRecord, false); // 清除 EditorPrefs
+            _currentSession = null;
             _loadingBundles.Clear();
             _bundleReferenceCounts.Clear();
         }
-        
-        /// <summary>
-        /// 静态回调：Bundle 开始加载（解决域重载问题）
-        /// </summary>
-        private static void OnBundleLoadStartStatic(BundleLoadEventArgs args)
+
+        private static void OnBundleLoadStart(BundleLoadEventArgs args)
         {
-            Instance.OnBundleLoadStart(args);
-        }
-        
-        /// <summary>
-        /// 静态回调：Bundle 加载成功（解决域重载问题）
-        /// </summary>
-        private static void OnBundleLoadSuccessStatic(BundleLoadEventArgs args)
-        {
-            Instance.OnBundleLoadSuccess(args);
-        }
-        
-        /// <summary>
-        /// 静态回调：Bundle 加载失败（解决域重载问题）
-        /// </summary>
-        private static void OnBundleLoadFailedStatic(BundleLoadEventArgs args)
-        {
-            Instance.OnBundleLoadFailed(args);
-        }
-        
-        /// <summary>
-        /// 静态回调：Bundle 卸载（解决域重载问题）
-        /// </summary>
-        private static void OnBundleUnloadStatic(string bundleName)
-        {
-            Instance.OnBundleUnload(bundleName);
-        }
-        
-        private void OnBundleLoadStart(BundleLoadEventArgs args)
-        {
-            if (!IsRecording)
+            if (!_shouldRecord)
                 return;
-            
+            CreateSession();
             var record = new AssetBundleRecord
             {
                 bundleName = args.BundleName,
@@ -176,50 +167,51 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 loadType = args.IsAsync ? "Async" : "Sync",
                 dependencies = args.Dependencies != null ? new List<string>(args.Dependencies) : new List<string>()
             };
-            
+
             if (!_bundleReferenceCounts.ContainsKey(args.BundleName))
                 _bundleReferenceCounts[args.BundleName] = 0;
             _bundleReferenceCounts[args.BundleName]++;
             record.referenceCount = _bundleReferenceCounts[args.BundleName];
-            
+
             _loadingBundles[args.BundleName] = record;
         }
-        
-        private void OnBundleLoadSuccess(BundleLoadEventArgs args)
+
+        private static void OnBundleLoadSuccess(BundleLoadEventArgs args)
         {
-            if (!IsRecording)
+            if (!_shouldRecord)
                 return;
-            
+            CreateSession();
             if (_loadingBundles.TryGetValue(args.BundleName, out var record))
             {
                 record.loadEndTime = args.EndTime;
                 record.loadDuration = (record.loadEndTime - record.loadStartTime).TotalMilliseconds;
                 record.loadSuccess = true;
                 record.bundleSize = args.BundleSize;
-                
-                CurrentSession.records.Add(record);
+
+                _currentSession.records.Add(record);
                 _loadingBundles.Remove(args.BundleName);
             }
         }
-        
-        private void OnBundleLoadFailed(BundleLoadEventArgs args)
+
+        private static void OnBundleLoadFailed(BundleLoadEventArgs args)
         {
-            if (!IsRecording)
+            // 只有在运行时且标记了录制才记录
+            if (!_shouldRecord)
                 return;
-            
+            CreateSession();
             if (_loadingBundles.TryGetValue(args.BundleName, out var record))
             {
                 record.loadEndTime = args.EndTime;
                 record.loadDuration = (record.loadEndTime - record.loadStartTime).TotalMilliseconds;
                 record.loadSuccess = false;
                 record.errorMessage = args.ErrorMessage;
-                
-                CurrentSession.records.Add(record);
+
+                _currentSession.records.Add(record);
                 _loadingBundles.Remove(args.BundleName);
             }
         }
-        
-        private void OnBundleUnload(string bundleName)
+
+        private static void OnBundleUnload(string bundleName)
         {
             if (_bundleReferenceCounts.ContainsKey(bundleName))
             {
@@ -228,16 +220,15 @@ namespace OneAsset.Editor.AssetBundleMonitor
                     _bundleReferenceCounts.Remove(bundleName);
             }
         }
-        
-        public int GetBundleReferenceCount(string bundleName)
+
+        public static int GetBundleReferenceCount(string bundleName)
         {
             return _bundleReferenceCounts.TryGetValue(bundleName, out var count) ? count : 0;
         }
-        
-        public List<AssetBundleRecord> GetAllRecords()
+
+        public static List<AssetBundleRecord> GetAllRecords()
         {
-            return CurrentSession?.records ?? new List<AssetBundleRecord>();
+            return _currentSession?.records ?? new List<AssetBundleRecord>();
         }
     }
 }
-
