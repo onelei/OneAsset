@@ -1,1 +1,93 @@
-{"version":"","time":638991761026419299,"packages":[{"name":"Bundles","groups":[{"name":"UI","bundles":[{"name":"assets_oneasset_samples_runtime_prefabs","hash":"6a811eb05d6a6d9a646c14a7776a2bb1","assets":[{"address":"Runtime/Prefabs/Cube.prefab","assetPath":"Assets/OneAsset/Samples/Runtime/Prefabs/Cube.prefab","assetGuid":"a2c20505aea6f1c46be0f90e0a66c666","assetTags":[""],"bundleId":0},{"address":"Runtime/Prefabs/UI_Sample.prefab","assetPath":"Assets/OneAsset/Samples/Runtime/Prefabs/UI_Sample.prefab","assetGuid":"703b36297ac9df34490b4834853c7013","assetTags":[""],"bundleId":0}],"depends":[]},{"name":"assets_oneasset_samples_runtime_scenes","hash":"fbb5cfbe0274899a74f04f70c679d730","assets":[{"address":"Runtime/Scenes/SampleScene.unity","assetPath":"Assets/OneAsset/Samples/Runtime/Scenes/SampleScene.unity","assetGuid":"9fc0d4010bbf28b4594072e72b8655ab","assetTags":[""],"bundleId":0}],"depends":["assets_oneasset_samples_runtime_prefabs"]}]},{"name":"Icon","bundles":[{"name":"assets_oneasset_samples_runtime_sprites_ui_uisample","hash":"d7e971fb2744f2325f31cad6dd37d9b1","assets":[{"address":"Runtime/Sprites/UI/UISample/Emoji_Aristocrat.png","assetPath":"Assets/OneAsset/Samples/Runtime/Sprites/UI/UISample/Emoji_Aristocrat.png","assetGuid":"19fbd19360422ce46953759c31ff08d8","assetTags":[""],"bundleId":0},{"address":"Runtime/Sprites/UI/UISample/Emoji_Crazy.png","assetPath":"Assets/OneAsset/Samples/Runtime/Sprites/UI/UISample/Emoji_Crazy.png","assetGuid":"5bc70d032b958434f8d73ff2b0d0a359","assetTags":[""],"bundleId":0}],"depends":[]}]}]},{"name":"Raw","groups":[]}]}
+{
+    "version": "",
+    "time": 638993382740731279,
+    "packages": [
+        {
+            "name": "Bundles",
+            "groups": [
+                {
+                    "name": "UI",
+                    "bundles": [
+                        {
+                            "name": "assets_oneasset_samples_runtime_prefabs",
+                            "hash": "6a811eb05d6a6d9a646c14a7776a2bb1",
+                            "assets": [
+                                {
+                                    "address": "Prefabs/Cube.prefab",
+                                    "assetPath": "Assets/OneAsset/Samples/Runtime/Prefabs/Cube.prefab",
+                                    "assetGuid": "a2c20505aea6f1c46be0f90e0a66c666",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                },
+                                {
+                                    "address": "Prefabs/UI_Sample.prefab",
+                                    "assetPath": "Assets/OneAsset/Samples/Runtime/Prefabs/UI_Sample.prefab",
+                                    "assetGuid": "703b36297ac9df34490b4834853c7013",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                }
+                            ],
+                            "depends": []
+                        },
+                        {
+                            "name": "assets_oneasset_samples_runtime_scenes",
+                            "hash": "fbb5cfbe0274899a74f04f70c679d730",
+                            "assets": [
+                                {
+                                    "address": "Scenes/SampleScene.unity",
+                                    "assetPath": "Assets/OneAsset/Samples/Runtime/Scenes/SampleScene.unity",
+                                    "assetGuid": "9fc0d4010bbf28b4594072e72b8655ab",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                }
+                            ],
+                            "depends": [
+                                "assets_oneasset_samples_runtime_prefabs"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Icon",
+                    "bundles": [
+                        {
+                            "name": "assets_oneasset_samples_runtime_sprites_ui_uisample",
+                            "hash": "d7e971fb2744f2325f31cad6dd37d9b1",
+                            "assets": [
+                                {
+                                    "address": "Sprites/UI/UISample/Emoji_Aristocrat.png",
+                                    "assetPath": "Assets/OneAsset/Samples/Runtime/Sprites/UI/UISample/Emoji_Aristocrat.png",
+                                    "assetGuid": "19fbd19360422ce46953759c31ff08d8",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                },
+                                {
+                                    "address": "Sprites/UI/UISample/Emoji_Crazy.png",
+                                    "assetPath": "Assets/OneAsset/Samples/Runtime/Sprites/UI/UISample/Emoji_Crazy.png",
+                                    "assetGuid": "5bc70d032b958434f8d73ff2b0d0a359",
+                                    "assetTags": [
+                                        ""
+                                    ],
+                                    "bundleId": 0
+                                }
+                            ],
+                            "depends": []
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Raw",
+            "groups": []
+        }
+    ]
+}

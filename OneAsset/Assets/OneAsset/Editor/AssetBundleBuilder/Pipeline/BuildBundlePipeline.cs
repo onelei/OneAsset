@@ -13,7 +13,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             if (builderPackage == null)
                 return;
             var packageName = builderPackage.packageName;
-            var outputPath = builderPackage.GetOutputPath();
+            var outputPath = builderPackage.GetOriginOutputPath();
             if (!Directory.Exists(outputPath))
             {
                 Directory.CreateDirectory(outputPath);

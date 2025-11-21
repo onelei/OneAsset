@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using OneAsset.Editor.AssetBundleBuilder.Data;
 using OneAsset.Runtime;
@@ -39,7 +38,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
         [MenuItem("OneAsset/Editor/AssetBundleBuildReportWindow")]
         public static void OpenWindow()
         {
-            var window = GetWindow<AssetBundleBuildReportWindow>("Build Report Viewer", true);
+            var window = GetWindow<AssetBundleBuildReportWindow>("AssetBundle Report", true);
             window.minSize = new Vector2(1000, 700);
             window.Show();
         }
@@ -415,7 +414,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
         /// </summary>
         private void LoadLatestReport()
         {
-            var assetBundlesPath = Path.Combine(OneAssetSetting.GetAssetBundlesRootPath(), "Origin");
+            var assetBundlesPath = OneAssetSetting.GetAssetBundlesOriginPath();
             if (!Directory.Exists(assetBundlesPath))
             {
                 EditorUtility.DisplayDialog("Error", "AssetBundles directory does not exist", "OK");

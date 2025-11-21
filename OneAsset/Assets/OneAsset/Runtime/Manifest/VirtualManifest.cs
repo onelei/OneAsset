@@ -50,7 +50,7 @@ namespace OneAsset.Runtime.Manifest
                 File.Delete(path);
             }
 
-            var json = JsonUtility.ToJson(this);
+            var json = JsonUtility.ToJson(this, true);
             File.WriteAllText(path, json);
         }
 

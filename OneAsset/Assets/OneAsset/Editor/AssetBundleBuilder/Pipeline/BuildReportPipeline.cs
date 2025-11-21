@@ -82,9 +82,9 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             buildReport.summary.buildMode = builderPackage.buildMode.ToString();
             buildReport.summary.compressMode = builderPackage.compressMode.ToString();
             buildReport.summary.encryptRule = builderPackage.encryptRule;
-            buildReport.summary.outputPath = builderPackage.GetOutputPath();
+            buildReport.summary.outputPath = builderPackage.GetOriginOutputPath();
 
-            var outputPath = builderPackage.GetOutputPath();
+            var outputPath = builderPackage.GetOriginOutputPath();
             long totalSize = 0;
             long largestSize = 0;
             string largestBundle = string.Empty;
@@ -167,7 +167,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         /// </summary>
         private void SaveBuildReport(BuildReportData buildReport, AssetBundleBuilderPackage builderPackage)
         {
-            var outputPath = builderPackage.GetOutputPath();
+            var outputPath = builderPackage.GetOriginOutputPath();
             var reportFileName = $"BuildReport_{buildReport.summary.packageName}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
             var reportPath = Path.Combine(outputPath, reportFileName);
 

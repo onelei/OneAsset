@@ -9,7 +9,17 @@ namespace OneAsset.Runtime
 
         public static string GetAssetBundlesRootPath()
         {
-            return Path.Combine(Application.dataPath, $"../Bundles/{GetPlatformFolderForAssetBundles()}");
+            return Path.Combine(Application.dataPath, $"../Bundles/{GetPlatformFolderForAssetBundles()}/Output");
+        }
+
+        public static string GetAssetBundlesOriginPath()
+        {
+            return $"{GetAssetBundlesRootPath()}/../Origin";
+        }
+
+        public static string GetAssetBundlesOutputPath()
+        {
+            return Path.Combine(Application.dataPath, $"../Bundles/{GetPlatformFolderForAssetBundles()}/Output");
         }
 
         public static string GetPlatformFolderForAssetBundles()

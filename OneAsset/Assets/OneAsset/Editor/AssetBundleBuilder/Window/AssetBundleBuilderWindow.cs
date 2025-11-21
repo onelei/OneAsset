@@ -69,7 +69,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
                         {
                             if (_package != null)
                             {
-                                EditorGUILayout.TextField("Build Output", _package.GetOutputPath());
+                                EditorGUILayout.TextField("Build Output", _package.GetOriginOutputPath());
                             }
                         }
                         EditorGUI.EndDisabledGroup();

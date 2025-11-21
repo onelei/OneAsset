@@ -54,14 +54,14 @@ namespace OneAsset.Editor.AssetBundleBuilder.Data
             return options;
         }
 
-        public string GetOutputPath()
+        public string GetOriginOutputPath()
         {
-            return Path.Combine(OneAssetSetting.GetAssetBundlesRootPath(), "Origin", packageName);
+            return Path.Combine(OneAssetSetting.GetAssetBundlesOriginPath(), packageName);
         }
 
-        public string GetOutputEncryptPath()
+        public string GetFinalOutputPath()
         {
-            return Path.Combine(OneAssetSetting.GetAssetBundlesRootPath(), "Encrypt", packageName);
+            return Path.Combine(OneAssetSetting.GetAssetBundlesOutputPath(), packageName);
         }
 
         public BuildTarget GetBuildTarget()

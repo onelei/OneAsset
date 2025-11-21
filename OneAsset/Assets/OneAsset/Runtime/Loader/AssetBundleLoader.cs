@@ -8,9 +8,32 @@ using OneAsset.Runtime.Manifest;
 
 namespace OneAsset.Runtime.Loader
 {
+    /// <summary>
+    /// Bundle load event data
+    /// </summary>
+    public class BundleLoadEventArgs
+    {
+        public string BundleName { get; set; }
+        public string PackageName { get; set; }
+        public string AssetAddress { get; set; }
+        public string AssetPath { get; set; }
+        public List<string> Dependencies { get; set; }
+        public bool IsAsync { get; set; }
+        public long BundleSize { get; set; }
+        public string ErrorMessage { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+    }
+    
     public class AssetBundleLoader : ILoader
     {
         private readonly Dictionary<string, AssetBundle> _loadedAssetBundles = new Dictionary<string, AssetBundle>();
+
+        // Events for monitoring
+        public static event Action<BundleLoadEventArgs> OnBundleLoadStart;
+        public static event Action<BundleLoadEventArgs> OnBundleLoadSuccess;
+        public static event Action<BundleLoadEventArgs> OnBundleLoadFailed;
+        public static event Action<string> OnBundleUnload;
 
         private BundleInfo GetBundleInfo(string address)
         {
@@ -24,7 +47,7 @@ namespace OneAsset.Runtime.Loader
                 return default(T);
             var bundleName = bundleInfo.name;
             var packageName = bundleInfo.PackageName;
-            LoadAssetBundle(packageName, bundleName);
+            LoadAssetBundle(packageName, bundleName, assetName, bundleInfo, false);
             foreach (var depend in bundleInfo.depends)
             {
                 LoadAssetBundle(packageName, depend);
@@ -39,7 +62,7 @@ namespace OneAsset.Runtime.Loader
             var bundleInfo = GetBundleInfo(assetName);
             var bundleName = bundleInfo.name;
             var packageName = bundleInfo.PackageName;
-            await LoadAssetBundleAsync(packageName, bundleName);
+            await LoadAssetBundleAsync(packageName, bundleName, assetName, bundleInfo, true);
             foreach (var depend in bundleInfo.depends)
             {
                 await LoadAssetBundleAsync(packageName, depend);
@@ -62,33 +85,84 @@ namespace OneAsset.Runtime.Loader
             var bundle = _loadedAssetBundles[bundleName];
             bundle.Unload(unloadAllLoadedObjects);
             _loadedAssetBundles.Remove(bundleName);
+            
+            OnBundleUnload?.Invoke(bundleName);
         }
 
-        // LoadAssetBundle
-        private AssetBundle LoadAssetBundle(string packageName, string bundleName)
+        // LoadAssetBundle with event
+        private AssetBundle LoadAssetBundle(string packageName, string bundleName, string assetAddress = "", 
+            BundleInfo bundleInfo = null, bool isAsync = false)
         {
             if (_loadedAssetBundles.ContainsKey(bundleName))
             {
                 return _loadedAssetBundles[bundleName];
             }
 
+            var eventArgs = new BundleLoadEventArgs
+            {
+                BundleName = bundleName,
+                PackageName = packageName,
+                AssetAddress = assetAddress,
+                AssetPath = bundleInfo?.GetAssetPath(assetAddress) ?? "",
+                Dependencies = bundleInfo?.depends ?? new List<string>(),
+                IsAsync = isAsync,
+                StartTime = DateTime.Now
+            };
+            
+            OnBundleLoadStart?.Invoke(eventArgs);
+
             var bundlePath = GetAssetBundlePath(packageName, bundleName);
             var bundle = AssetBundle.LoadFromFile(bundlePath);
+            
+            eventArgs.EndTime = DateTime.Now;
+            
             if (bundle != null)
             {
                 _loadedAssetBundles.Add(bundleName, bundle);
+                
+                try
+                {
+                    var fileInfo = new System.IO.FileInfo(bundlePath);
+                    eventArgs.BundleSize = fileInfo.Length;
+                }
+                catch { }
+                
+                OnBundleLoadSuccess?.Invoke(eventArgs);
+            }
+            else
+            {
+                eventArgs.ErrorMessage = $"Failed to load from path: {bundlePath}";
+                OnBundleLoadFailed?.Invoke(eventArgs);
             }
 
             return bundle;
         }
 
-        // LoadAssetBundleAsync
+        // LoadAssetBundleAsync with event
         private async UniTask<AssetBundle> LoadAssetBundleAsync(string packageName, string bundleName,
+            string assetAddress = "", BundleInfo bundleInfo = null, bool invokeEvent = false,
             CancellationToken cancellationToken = default)
         {
             if (_loadedAssetBundles.ContainsKey(bundleName))
             {
                 return _loadedAssetBundles[bundleName];
+            }
+
+            BundleLoadEventArgs eventArgs = null;
+            if (invokeEvent)
+            {
+                eventArgs = new BundleLoadEventArgs
+                {
+                    BundleName = bundleName,
+                    PackageName = packageName,
+                    AssetAddress = assetAddress,
+                    AssetPath = bundleInfo?.GetAssetPath(assetAddress) ?? "",
+                    Dependencies = bundleInfo?.depends ?? new List<string>(),
+                    IsAsync = true,
+                    StartTime = DateTime.Now
+                };
+                
+                OnBundleLoadStart?.Invoke(eventArgs);
             }
 
             var bundlePath = GetAssetBundlePath(packageName, bundleName);
@@ -97,9 +171,18 @@ namespace OneAsset.Runtime.Loader
                 var operation = request.SendWebRequest();
                 await operation.ToUniTask(cancellationToken: cancellationToken);
 
+                if (invokeEvent)
+                    eventArgs.EndTime = DateTime.Now;
+
                 if (request.isHttpError || request.isNetworkError)
                 {
                     OneAssetLogger.LogError($"Failed to load AssetBundle: {bundleName}, Error: {request.error}");
+                    
+                    if (invokeEvent)
+                    {
+                        eventArgs.ErrorMessage = request.error;
+                        OnBundleLoadFailed?.Invoke(eventArgs);
+                    }
                 }
                 else
                 {
@@ -107,7 +190,28 @@ namespace OneAsset.Runtime.Loader
                     if (bundle != null)
                     {
                         _loadedAssetBundles.Add(bundleName, bundle);
+                        
+                        if (invokeEvent)
+                        {
+                            try
+                            {
+                                var fileInfo = new System.IO.FileInfo(bundlePath.Replace("file://", ""));
+                                eventArgs.BundleSize = fileInfo.Length;
+                            }
+                            catch { }
+                            
+                            OnBundleLoadSuccess?.Invoke(eventArgs);
+                        }
+                        
                         return bundle;
+                    }
+                    else
+                    {
+                        if (invokeEvent)
+                        {
+                            eventArgs.ErrorMessage = "DownloadHandlerAssetBundle.GetContent returned null";
+                            OnBundleLoadFailed?.Invoke(eventArgs);
+                        }
                     }
                 }
             }

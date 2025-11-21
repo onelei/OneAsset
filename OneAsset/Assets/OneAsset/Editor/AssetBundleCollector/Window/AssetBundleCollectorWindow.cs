@@ -212,7 +212,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             var outputPath = OneAssetSetting.ManifestPath;
             try
             {
-                File.WriteAllText(outputPath, JsonUtility.ToJson(manifest));
+                File.WriteAllText(outputPath, JsonUtility.ToJson(manifest, true));
             }
             catch (Exception e)
             {
@@ -220,6 +220,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             }
             finally
             {
+                AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
                 OneAssetLogger.Log($"Save Successful: {outputPath}");
             }

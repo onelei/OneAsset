@@ -9,8 +9,8 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             var manifestInfo = pipelineData.CustomVirtualManifest;
             var builderPackage = pipelineData.AssetBundleBuilderPackage;
             var packageName = builderPackage.packageName;
-            var outputPath = builderPackage.GetOutputPath();
-            var outputEncryptPath = builderPackage.GetOutputEncryptPath();
+            var outputPath = builderPackage.GetOriginOutputPath();
+            var outputEncryptPath = builderPackage.GetFinalOutputPath();
             if (!Directory.Exists(outputEncryptPath))
             {
                 Directory.CreateDirectory(outputEncryptPath);
