@@ -7,7 +7,7 @@ using UnityEngine;
 namespace OneAsset.Editor.AssetBundleMonitor
 {
     /// <summary>
-    /// AssetBundle加载记录TreeView
+    /// AssetBundle Load Record TreeView
     /// </summary>
     public class AssetBundleRecordTreeView : TreeView
     {
@@ -16,7 +16,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         public delegate void BundleSelectedDelegate(AssetBundleRecord record);
         public event BundleSelectedDelegate OnBundleSelected;
         
-        // 列枚举
+        // Column Enum
         enum ColumnType
         {
             BundleName,
@@ -146,7 +146,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         }
         
         /// <summary>
-        /// 设置记录数据
+        /// Set record data
         /// </summary>
         public void SetRecords(List<AssetBundleRecord> records)
         {
@@ -251,7 +251,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
             base.DoubleClickedItem(id);
             var record = _records[id - 1];
             
-            // 双击时如果有资源路径，尝试在项目中选中该资源
+            // On double click, if there is an asset path, try to select the asset in the project
             if (!string.IsNullOrEmpty(record.assetPath))
             {
                 var asset = AssetDatabase.LoadAssetAtPath<Object>(record.assetPath);

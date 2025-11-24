@@ -24,6 +24,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         public long bundleSize; // bytes
         public bool isAsync;
         public string loadType;
+        public int frameIndex;
         
         public string GetLoadDurationReadable()
         {
@@ -43,6 +44,18 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 return $"{bundleSize / (1024.0 * 1024.0):F2}MB";
         }
     }
+
+    /// <summary>
+    /// Profiler frame data
+    /// </summary>
+    [Serializable]
+    public class ProfilerFrameData
+    {
+        public int frameIndex;
+        public int totalBundleCount;
+        public int loadedCount;
+        public int unloadedCount;
+    }
     
     /// <summary>
     /// Monitor session data
@@ -54,6 +67,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         public DateTime sessionEndTime;
         public bool isRecording;
         public List<AssetBundleRecord> records = new List<AssetBundleRecord>();
+        public List<ProfilerFrameData> profilerData = new List<ProfilerFrameData>();
         
         public double GetSessionDuration()
         {

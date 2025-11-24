@@ -5,13 +5,13 @@ using UnityEngine;
 namespace OneAsset.Editor.AssetBundleMonitor
 {
     /// <summary>
-    /// AssetBundle依赖TreeView
+    /// AssetBundle Dependency TreeView
     /// </summary>
     public class AssetBundleRecordDependencyTreeView : TreeView
     {
         private List<string> _dependencies;
         
-        // 列枚举
+        // Column Enum
         enum ColumnType
         {
             Index,
@@ -65,7 +65,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         }
         
         /// <summary>
-        /// 设置依赖数据
+        /// Set dependency data
         /// </summary>
         public void SetDependencies(List<string> dependencies)
         {

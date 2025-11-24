@@ -13,13 +13,13 @@ namespace OneAsset.Editor.AssetBundleMonitor
     /// </summary>
     public static class AssetBundleMonitor
     {
-        // EditorPrefs 键名，用于在域重载后恢复状态
+        // EditorPrefs key name, used to restore state after domain reload
         private const string PrefKeyShouldRecord = "AssetBundleMonitor_ShouldRecord";
 
-        // 录制标记：在编辑器下点击 Start 设置为 true，运行时根据此标记决定是否记录
+        // Recording flag: set to true when Start is clicked in Editor, determines whether to record at runtime based on this flag
         private static bool _shouldRecord = false;
 
-        // 会话数据
+        // Session data
         private static MonitorSessionData _currentSession;
 
         private static readonly Dictionary<string, AssetBundleRecord> _loadingBundles =
@@ -27,19 +27,23 @@ namespace OneAsset.Editor.AssetBundleMonitor
 
         private static readonly Dictionary<string, int> _bundleReferenceCounts = new Dictionary<string, int>();
 
-        // 标记是否已经订阅事件，防止重复订阅
+        // Flag to check if events are already subscribed to prevent duplicate subscriptions
         private static bool _isSubscribed = false;
+
+        private static int _lastFrameIndex = -1;
+        private static int _currentFrameLoadedCount = 0;
+        private static int _currentFrameUnloadedCount = 0;
 
         public static MonitorSessionData CurrentSession => _currentSession;
         public static bool IsRecording => _shouldRecord;
 
         /// <summary>
-        /// 编辑器初始化时自动订阅事件（处理域重载）
+        /// Automatically subscribe to events during editor initialization (handles domain reload)
         /// </summary>
         [InitializeOnLoadMethod]
         private static void InitializeOnLoad()
         {
-            // 从 EditorPrefs 恢复录制状态（解决域重载后状态丢失问题）
+            // Restore recording state from EditorPrefs (solves state loss issue after domain reload)
             _shouldRecord = EditorPrefs.GetBool(PrefKeyShouldRecord, false);
             if (_shouldRecord)
             {
@@ -51,6 +55,40 @@ namespace OneAsset.Editor.AssetBundleMonitor
             AssetBundleLoader.OnBundleLoadFailed += OnBundleLoadFailed;
             AssetBundleLoader.OnBundleUnload += OnBundleUnload;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            EditorApplication.update += Update;
+        }
+
+        private static void Update()
+        {
+            if (!_shouldRecord || !Application.isPlaying || _currentSession == null) 
+                return;
+
+            int currentFrame = Time.frameCount;
+            if (currentFrame != _lastFrameIndex)
+            {
+                // Record data for the frame that just finished (or the current state if it's the first frame)
+                if (_lastFrameIndex != -1)
+                {
+                    var frameData = new ProfilerFrameData
+                    {
+                        frameIndex = _lastFrameIndex,
+                        totalBundleCount = _bundleReferenceCounts.Count,
+                        loadedCount = _currentFrameLoadedCount,
+                        unloadedCount = _currentFrameUnloadedCount
+                    };
+                    _currentSession.profilerData.Add(frameData);
+                    
+                    // Keep only last 400 frames
+                    if (_currentSession.profilerData.Count > 400)
+                    {
+                        _currentSession.profilerData.RemoveAt(0);
+                    }
+                    
+                    _currentFrameLoadedCount = 0;
+                    _currentFrameUnloadedCount = 0;
+                }
+                _lastFrameIndex = currentFrame;
+            }
         }
 
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
@@ -68,7 +106,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         }
 
         /// <summary>
-        /// 确保已订阅事件（防止域重载导致订阅丢失）
+        /// Ensure events are subscribed (prevents subscription loss due to domain reload)
         /// </summary>
         private static void EnsureSubscribed()
         {
@@ -84,14 +122,14 @@ namespace OneAsset.Editor.AssetBundleMonitor
         }
 
         /// <summary>
-        /// 开始录制（仅设置标记，实际录制在运行时开始）
+        /// Start recording (only sets the flag, actual recording starts at runtime)
         /// </summary>
         public static void StartRecording()
         {
             _shouldRecord = true;
-            EditorPrefs.SetBool(PrefKeyShouldRecord, true); // 保存到 EditorPrefs
+            EditorPrefs.SetBool(PrefKeyShouldRecord, true); // Save to EditorPrefs
 
-            // 如果已经在运行模式，立即开始录制
+            // If already in play mode, start recording immediately
             if (EditorApplication.isPlaying)
             {
                 CreateSession();
@@ -103,7 +141,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
         }
 
         /// <summary>
-        /// 停止录制
+        /// Stop recording
         /// </summary>
         public static void StopRecording()
         {
@@ -114,7 +152,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
             }
 
             _shouldRecord = false;
-            EditorPrefs.SetBool(PrefKeyShouldRecord, false); // 保存到 EditorPrefs
+            EditorPrefs.SetBool(PrefKeyShouldRecord, false); // Save to EditorPrefs
 
             if (_currentSession != null)
             {
@@ -135,16 +173,21 @@ namespace OneAsset.Editor.AssetBundleMonitor
             };
             _loadingBundles.Clear();
             _bundleReferenceCounts.Clear();
+            
+            _lastFrameIndex = Time.frameCount;
+            _currentFrameLoadedCount = 0;
+            _currentFrameUnloadedCount = 0;
+
             Debug.Log("[AssetBundle Monitor] Started recording immediately");
         }
 
         /// <summary>
-        /// 清空会话数据
+        /// Clear session data
         /// </summary>
         public static void ClearSession()
         {
             _shouldRecord = false;
-            EditorPrefs.SetBool(PrefKeyShouldRecord, false); // 清除 EditorPrefs
+            EditorPrefs.SetBool(PrefKeyShouldRecord, false); // Clear EditorPrefs
             _currentSession = null;
             _loadingBundles.Clear();
             _bundleReferenceCounts.Clear();
@@ -165,6 +208,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 loadStartTime = args.StartTime,
                 isAsync = args.IsAsync,
                 loadType = args.IsAsync ? "Async" : "Sync",
+                frameIndex = Time.frameCount,
                 dependencies = args.Dependencies != null ? new List<string>(args.Dependencies) : new List<string>()
             };
 
@@ -190,12 +234,14 @@ namespace OneAsset.Editor.AssetBundleMonitor
 
                 _currentSession.records.Add(record);
                 _loadingBundles.Remove(args.BundleName);
+                
+                _currentFrameLoadedCount++;
             }
         }
 
         private static void OnBundleLoadFailed(BundleLoadEventArgs args)
         {
-            // 只有在运行时且标记了录制才记录
+            // Only record if in runtime and recording is flagged
             if (!_shouldRecord)
                 return;
             CreateSession();
@@ -218,6 +264,9 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 _bundleReferenceCounts[bundleName]--;
                 if (_bundleReferenceCounts[bundleName] <= 0)
                     _bundleReferenceCounts.Remove(bundleName);
+                
+                if (_shouldRecord)
+                    _currentFrameUnloadedCount++;
             }
         }
 
@@ -229,6 +278,37 @@ namespace OneAsset.Editor.AssetBundleMonitor
         public static List<AssetBundleRecord> GetAllRecords()
         {
             return _currentSession?.records ?? new List<AssetBundleRecord>();
+        }
+
+        public static void SaveSession(string path)
+        {
+            if (_currentSession == null) return;
+            try
+            {
+                string json = JsonUtility.ToJson(_currentSession, true);
+                System.IO.File.WriteAllText(path, json);
+                Debug.Log($"[AssetBundle Monitor] Session saved to {path}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AssetBundle Monitor] Failed to save session: {e.Message}");
+            }
+        }
+
+        public static void LoadSession(string path)
+        {
+            try
+            {
+                string json = System.IO.File.ReadAllText(path);
+                _currentSession = JsonUtility.FromJson<MonitorSessionData>(json);
+                _shouldRecord = false; // Stop recording when loading external data
+                EditorPrefs.SetBool(PrefKeyShouldRecord, false);
+                Debug.Log($"[AssetBundle Monitor] Session loaded from {path}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AssetBundle Monitor] Failed to load session: {e.Message}");
+            }
         }
     }
 }

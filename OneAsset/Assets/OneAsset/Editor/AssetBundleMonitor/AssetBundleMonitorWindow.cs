@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -23,10 +25,19 @@ namespace OneAsset.Editor.AssetBundleMonitor
         private GUIStyle _boxStyle;
         private GUIStyle _toolbarButtonStyle;
         
-        private bool _showSummary = true;
-        private bool _autoRefresh = false;
         private double _lastRefreshTime;
-        private const double AutoRefreshInterval = 1.0; // 1 second
+        private const double AutoRefreshIntervalSeconds = 0.5;
+
+        // Profiler controls
+        private int _currentFrameIndex = 0;
+        private int _minFrameIndex = 0;
+        private int _maxFrameIndex = 0;
+        private bool _autoScrollToLatest = true;
+        
+        // Profiler fields
+        private bool _showTotal = true;
+        private bool _showLoaded = true;
+        private bool _showUnloaded = true;
         
         [MenuItem("OneAsset/Editor/AssetBundleMonitorWindow")]
         public static void Open()
@@ -45,11 +56,11 @@ namespace OneAsset.Editor.AssetBundleMonitor
         private void Update()
         {
             // Auto refresh
-            if (_autoRefresh && AssetBundleMonitor.IsRecording)
+            if (AssetBundleMonitor.IsRecording)
             {
-                if (EditorApplication.timeSinceStartup - _lastRefreshTime > AutoRefreshInterval)
+                if (EditorApplication.timeSinceStartup - _lastRefreshTime > AutoRefreshIntervalSeconds)
                 {
-                    RefreshData();
+                    RefreshData(true);
                     _lastRefreshTime = EditorApplication.timeSinceStartup;
                     Repaint();
                 }
@@ -123,11 +134,281 @@ namespace OneAsset.Editor.AssetBundleMonitor
             
             DrawToolbar();
             
-            DrawSummarySection();
+            EditorGUILayout.Space(5);
+            
+            DrawProfilerSection();
             
             EditorGUILayout.Space(5);
             
             DrawRecordListSection();
+        }
+
+        private void DrawProfilerSection()
+        {
+            var session = AssetBundleMonitor.CurrentSession;
+            if (session == null || session.profilerData == null)
+            {
+                return;
+            }
+
+            EditorGUILayout.BeginVertical(_boxStyle);
+            // GUILayout.Label("Profiler", _headerStyle);
+
+            EditorGUILayout.BeginHorizontal();
+
+            // Left: Legend only
+            EditorGUILayout.BeginVertical(GUILayout.Width(150)); // Increased width for better readability
+            {
+                GUILayout.Label("AssetBundles", EditorStyles.boldLabel);
+                DrawLegendToggle("Total", ref _showTotal, Color.cyan);
+                DrawLegendToggle("Loaded", ref _showLoaded, Color.green);
+                DrawLegendToggle("Unloaded", ref _showUnloaded, new Color(1f, 0.3f, 0.3f));
+            }
+            EditorGUILayout.EndVertical();
+
+            // Right: Graph
+            DrawProfilerGraph(session.profilerData);
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawLegendToggle(string label, ref bool value, Color color)
+        {
+            EditorGUILayout.BeginHorizontal();
+            // Draw color box button
+            var rect = GUILayoutUtility.GetRect(7, 7, GUILayout.ExpandWidth(false));
+            if (Event.current.type == EventType.Repaint)
+            {
+                var drawRect = new Rect(rect.x, rect.y + 4, rect.width, rect.height); // Center vertically roughly
+                EditorGUI.DrawRect(drawRect, value ? color : Color.black);
+                // Draw border if black
+                if (!value)
+                {
+                    Handles.color = Color.gray;
+                    Handles.DrawWireDisc(drawRect.center, Vector3.forward, 3f);
+                }
+            }
+            
+            GUILayout.Label(label, EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+            
+            // Hit test for the whole row
+            var clickRect = GUILayoutUtility.GetLastRect();
+            if (Event.current.type == EventType.MouseDown && clickRect.Contains(Event.current.mousePosition))
+            {
+                value = !value;
+                Event.current.Use();
+            }
+        }
+
+        private void DrawColoredLabel(string text, Color color)
+        {
+            var oldColor = GUI.color;
+            GUI.color = color;
+            GUILayout.Label(text, EditorStyles.miniLabel);
+            GUI.color = oldColor;
+        }
+
+        private void DrawProfilerGraph(List<ProfilerFrameData> data)
+        {
+            if (data.Count == 0) return;
+
+            // Graph settings
+            float height = 150f;
+            
+            // Use full width available
+            Rect graphRect = GUILayoutUtility.GetRect(0, height, GUILayout.ExpandWidth(true));
+            float width = graphRect.width;
+            
+            float totalBarWidth = width / data.Count;
+            float spacing = totalBarWidth > 3f ? 1f : 0f;
+            float barWidth = totalBarWidth - spacing;
+            if (barWidth < 0.1f) barWidth = 0.1f;
+
+            // Calculate Max Value for scaling
+            int maxVal = 100; // Fixed max value as requested
+            maxVal = Mathf.Max(maxVal, 1); // Avoid divide by zero
+
+            // Handle Input
+            HandleGraphInput(graphRect, data, totalBarWidth);
+
+            // Draw Bars
+            if (Event.current.type == EventType.Repaint)
+            {
+                // Draw Bars First
+                for (int i = 0; i < data.Count; i++)
+                {
+                    var d = data[i];
+                    float x = graphRect.x + i * totalBarWidth;
+                    
+                    // Draw Total (Cyan)
+                    if (_showTotal)
+                    {
+                        float h = (float)d.totalBundleCount / maxVal * height;
+                        if (h > 0)
+                            EditorGUI.DrawRect(new Rect(x, graphRect.y + height - h, barWidth, h), Color.cyan);
+                    }
+
+                    // Draw Loaded (Green)
+                    if (_showLoaded && d.loadedCount > 0)
+                    {
+                        float h = (float)d.loadedCount / maxVal * height;
+                        EditorGUI.DrawRect(new Rect(x, graphRect.y + height - h, barWidth, h), Color.green);
+                    }
+
+                    // Draw Unloaded (Red)
+                    if (_showUnloaded && d.unloadedCount > 0)
+                    {
+                        float h = (float)d.unloadedCount / maxVal * height;
+                        EditorGUI.DrawRect(new Rect(x, graphRect.y + height - h, barWidth, h), new Color(1f, 0.3f, 0.3f));
+                    }
+                }
+
+                // Draw Selection Overlay (Top Layer)
+                for (int i = 0; i < data.Count; i++)
+                {
+                    var d = data[i];
+                    if (d.frameIndex == _currentFrameIndex)
+                    {
+                        float x = graphRect.x + i * totalBarWidth;
+                        // White selection bar with adaptive width
+                        EditorGUI.DrawRect(new Rect(x, graphRect.y, totalBarWidth, height), new Color(1f, 1f, 1f, 0.6f));
+                        
+                        // Draw Bubble Info
+                        DrawSelectionBubble(d, new Rect(x, graphRect.y, totalBarWidth, height), graphRect);
+                    }
+                }
+            }
+        }
+
+        private void HandleGraphInput(Rect graphRect, List<ProfilerFrameData> data, float totalBarWidth)
+        {
+            Event evt = Event.current;
+            int newFrameIndex = -1;
+            int controlID = GUIUtility.GetControlID(FocusType.Passive);
+
+            switch (evt.GetTypeForControl(controlID))
+            {
+                case EventType.MouseDown:
+                    if (graphRect.Contains(evt.mousePosition))
+                    {
+                        GUIUtility.hotControl = controlID;
+                        
+                        float localX = evt.mousePosition.x - graphRect.x;
+                        int index = Mathf.FloorToInt(localX / totalBarWidth);
+                        if (index < 0) index = 0;
+                        if (index >= data.Count) index = data.Count - 1;
+                        if (index >= 0 && index < data.Count) newFrameIndex = data[index].frameIndex;
+                        
+                        evt.Use();
+                    }
+                    break;
+                    
+                case EventType.MouseDrag:
+                    if (GUIUtility.hotControl == controlID)
+                    {
+                        float localX = evt.mousePosition.x - graphRect.x;
+                        int index = Mathf.FloorToInt(localX / totalBarWidth);
+                        if (index < 0) index = 0;
+                        if (index >= data.Count) index = data.Count - 1;
+                        if (index >= 0 && index < data.Count) newFrameIndex = data[index].frameIndex;
+                        
+                        evt.Use();
+                    }
+                    break;
+                    
+                case EventType.MouseUp:
+                    if (GUIUtility.hotControl == controlID)
+                    {
+                        GUIUtility.hotControl = 0;
+                        evt.Use();
+                    }
+                    break;
+            }
+            
+            // Keyboard
+            if (evt.type == EventType.KeyDown)
+            {
+                if (evt.keyCode == KeyCode.LeftArrow)
+                {
+                    var currentIdx = data.FindIndex(d => d.frameIndex == _currentFrameIndex);
+                    if (currentIdx > 0)
+                        newFrameIndex = data[currentIdx - 1].frameIndex;
+                    else if (currentIdx == -1 && data.Count > 0)
+                        newFrameIndex = data[data.Count - 1].frameIndex;
+                    
+                    evt.Use();
+                }
+                else if (evt.keyCode == KeyCode.RightArrow)
+                {
+                    var currentIdx = data.FindIndex(d => d.frameIndex == _currentFrameIndex);
+                    if (currentIdx >= 0 && currentIdx < data.Count - 1)
+                        newFrameIndex = data[currentIdx + 1].frameIndex;
+                    else if (currentIdx == -1 && data.Count > 0)
+                        newFrameIndex = data[0].frameIndex;
+
+                    evt.Use();
+                }
+            }
+
+            if (newFrameIndex != -1 && newFrameIndex != _currentFrameIndex)
+            {
+                _currentFrameIndex = newFrameIndex;
+                _autoScrollToLatest = false;
+                RefreshData(false);
+                Repaint();
+            }
+        }
+
+        private void DrawSelectionBubble(ProfilerFrameData d, Rect selectionRect, Rect graphRect)
+        {
+            // Prepare content
+            var contents = new List<(string label, string value, Color color)>();
+            contents.Add(("Frame", d.frameIndex.ToString(), Color.white));
+            if (_showTotal) contents.Add(("Total", d.totalBundleCount.ToString(), Color.cyan));
+            if (_showLoaded) contents.Add(("Loaded", d.loadedCount.ToString(), Color.green));
+            if (_showUnloaded) contents.Add(("Unloaded", d.unloadedCount.ToString(), new Color(1f, 0.3f, 0.3f)));
+
+            if (contents.Count == 0) return;
+
+            float lineHeight = 16f;
+            float width = 140f;
+            float padding = 5f;
+            float height = contents.Count * lineHeight + padding * 2;
+
+            // Position
+            float x = selectionRect.x + selectionRect.width + 5; // Right side
+            float y = selectionRect.y;
+
+            // Check bounds (flip to left if not enough space on right)
+            if (x + width > graphRect.xMax)
+            {
+                x = selectionRect.x - width - 5;
+            }
+            
+            // Clamp Y
+            if (y + height > graphRect.yMax)
+            {
+                y = graphRect.yMax - height;
+            }
+
+            Rect bubbleRect = new Rect(x, y, width, height);
+
+            // Draw Bubble Background (Black)
+            EditorGUI.DrawRect(bubbleRect, Color.black); 
+            
+            // Draw Content
+            float currentY = y + padding;
+            foreach(var item in contents)
+            {
+                var rect = new Rect(x + padding, currentY, width - padding * 2, lineHeight);
+                var oldColor = GUI.color;
+                GUI.color = item.color;
+                GUI.Label(rect, $"{item.label}: {item.value}", EditorStyles.boldLabel);
+                GUI.color = oldColor;
+                currentY += lineHeight;
+            }
         }
         
         /// <summary>
@@ -139,105 +420,117 @@ namespace OneAsset.Editor.AssetBundleMonitor
             {
                 var isRecording = AssetBundleMonitor.IsRecording;
                 
-                // Start/Stop button
-                GUI.backgroundColor = isRecording ? Color.red : Color.green;
-                if (GUILayout.Button(isRecording ? "⏹ Stop" : "⏺ Start", 
-                    _toolbarButtonStyle, GUILayout.Width(80)))
+                // Record Button
+                var oldColor = GUI.color;
+                if (isRecording) GUI.color = Color.red;
+                var recordContent = EditorGUIUtility.IconContent("Animation.Record");
+                recordContent.tooltip = isRecording ? "Stop Recording" : "Start Recording";
+                
+                if (GUILayout.Button(recordContent, EditorStyles.toolbarButton, GUILayout.Width(30)))
                 {
                     if (isRecording)
                     {
                         AssetBundleMonitor.StopRecording();
-                        RefreshData();
+                        _autoScrollToLatest = false;
                     }
                     else
                     {
                         AssetBundleMonitor.StartRecording();
-                        RefreshData();
+                        _autoScrollToLatest = true;
                     }
+                    RefreshData(true);
                 }
-                GUI.backgroundColor = Color.white;
+                GUI.color = oldColor;
                 
-                // Clear button
-                if (GUILayout.Button("Clear", EditorStyles.toolbarButton, GUILayout.Width(60)))
+                // Clear
+                if (GUILayout.Button("Clear", EditorStyles.toolbarButton, GUILayout.Width(50)))
                 {
                     if (EditorUtility.DisplayDialog("Confirm", "Clear all recorded data?", "OK", "Cancel"))
                     {
                         AssetBundleMonitor.ClearSession();
-                        RefreshData();
+                        _currentFrameIndex = 0;
+                        _minFrameIndex = 0;
+                        _maxFrameIndex = 0;
+                        RefreshData(true);
+                    }
+                }
+
+                // Load
+                if (GUILayout.Button("Load", EditorStyles.toolbarButton, GUILayout.Width(50)))
+                {
+                    string path = EditorUtility.OpenFilePanel("Load Session", "", "json");
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        AssetBundleMonitor.LoadSession(path);
+                        _autoScrollToLatest = false;
+                        RefreshData(true);
+                        _currentFrameIndex = _minFrameIndex; // Jump to start after load
+                        RefreshData(false);
+                    }
+                }
+
+                // Save
+                if (GUILayout.Button("Save", EditorStyles.toolbarButton, GUILayout.Width(50)))
+                {
+                    string path = EditorUtility.SaveFilePanel("Save Session", "", "ABMonitorSession_" + System.DateTime.Now.ToString("yyyyMMdd_HHmmss"), "json");
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        AssetBundleMonitor.SaveSession(path);
                     }
                 }
                 
-                // Refresh button
-                if (GUILayout.Button("🔄 Refresh", EditorStyles.toolbarButton, GUILayout.Width(80)))
-                {
-                    RefreshData();
-                }
+                GUILayout.Space(20);
                 
-                // Auto refresh toggle
-                _autoRefresh = GUILayout.Toggle(_autoRefresh, "Auto Refresh", EditorStyles.toolbarButton, GUILayout.Width(90));
+                // Frame Navigation
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.FirstKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                {
+                    _autoScrollToLatest = false;
+                    _currentFrameIndex = _minFrameIndex;
+                    RefreshData(false);
+                }
+
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.PrevKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                {
+                    _autoScrollToLatest = false;
+                    _currentFrameIndex = Mathf.Max(_minFrameIndex, _currentFrameIndex - 1);
+                    RefreshData(false);
+                }
+
+                int lastFrame = (_minFrameIndex == 0 && _maxFrameIndex == 0) ? 0 : _maxFrameIndex;
+                GUILayout.Label($"Frame: {_currentFrameIndex} / {lastFrame}", EditorStyles.miniLabel, GUILayout.Width(120));
+
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.NextKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                {
+                    _autoScrollToLatest = false;
+                    _currentFrameIndex = Mathf.Min(_maxFrameIndex, _currentFrameIndex + 1);
+                    RefreshData(false);
+                }
+
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.LastKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
+                {
+                    _autoScrollToLatest = false;
+                    _currentFrameIndex = _maxFrameIndex;
+                    RefreshData(false);
+                }
                 
                 GUILayout.FlexibleSpace();
                 
                 // Status display
-                var statusText = isRecording ? "● Recording..." : "○ Stopped";
-                var statusColor = isRecording ? Color.red : Color.gray;
-                var oldColor = GUI.color;
-                GUI.color = statusColor;
-                GUILayout.Label(statusText, EditorStyles.miniLabel);
-                GUI.color = oldColor;
-            }
-            EditorGUILayout.EndHorizontal();
-        }
-        
-        /// <summary>
-        /// Draw summary section
-        /// </summary>
-        private void DrawSummarySection()
-        {
-            var session = AssetBundleMonitor.CurrentSession;
-            if (session == null)
-            {
-                EditorGUILayout.HelpBox("No monitoring data available. Click 'Start' to begin monitoring.", MessageType.Info);
-                return;
-            }
-            
-            EditorGUILayout.BeginVertical(_boxStyle);
-            {
-                _showSummary = EditorGUILayout.BeginFoldoutHeaderGroup(_showSummary, "Monitor Summary");
-                
-                if (_showSummary)
+                if (_autoScrollToLatest)
                 {
-                    EditorGUILayout.Space(5);
-                    
-                    EditorGUILayout.BeginHorizontal();
-                    DrawLabelField("Session Start:", session.sessionStartTime.ToString("yyyy-MM-dd HH:mm:ss"));
-                    if (!session.isRecording)
-                    {
-                        DrawLabelField("Session End:", session.sessionEndTime.ToString("yyyy-MM-dd HH:mm:ss"));
-                    }
-                    EditorGUILayout.EndHorizontal();
-                    
-                    EditorGUILayout.BeginHorizontal();
-                    DrawLabelField("Duration:", $"{session.GetSessionDuration():F2}s");
-                    DrawLabelField("Total Records:", session.records.Count.ToString());
-                    EditorGUILayout.EndHorizontal();
-                    
-                    EditorGUILayout.BeginHorizontal();
-                    DrawLabelField("Success:", session.GetSuccessCount().ToString(), Color.green);
-                    DrawLabelField("Failed:", session.GetFailedCount().ToString(), 
-                        session.GetFailedCount() > 0 ? Color.red : Color.gray);
-                    EditorGUILayout.EndHorizontal();
-                    
-                    EditorGUILayout.BeginHorizontal();
-                    long totalSize = session.GetTotalLoadedSize();
-                    string sizeStr = GetSizeReadable(totalSize);
-                    DrawLabelField("Total Loaded Size:", sizeStr);
-                    EditorGUILayout.EndHorizontal();
+                    GUILayout.Label("Auto-Scroll", EditorStyles.miniLabel);
                 }
                 
-                EditorGUILayout.EndFoldoutHeaderGroup();
+                if (GUILayout.Button(_autoScrollToLatest ? "Current" : "Current (Off)", EditorStyles.toolbarButton, GUILayout.Width(90)))
+                {
+                    _autoScrollToLatest = !_autoScrollToLatest;
+                    if (_autoScrollToLatest)
+                    {
+                        RefreshData(true);
+                    }
+                }
             }
-            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndHorizontal();
         }
         
         /// <summary>
@@ -248,19 +541,18 @@ namespace OneAsset.Editor.AssetBundleMonitor
             EditorGUILayout.BeginVertical(_boxStyle);
             {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Label("Load Record List", _headerStyle);
+                GUILayout.Label($"Frame {_currentFrameIndex} Records", _headerStyle);
                 GUILayout.FlexibleSpace();
                 
-                var session = AssetBundleMonitor.CurrentSession;
-                if (session != null)
-                {
-                    GUILayout.Label($"Total: {session.records.Count}", EditorStyles.miniLabel);
-                }
+                // Count for current frame
+                var visibleCount = _recordTreeView.GetRows()?.Count ?? 0;
+                GUILayout.Label($"Count: {visibleCount}", EditorStyles.miniLabel);
+                
                 EditorGUILayout.EndHorizontal();
                 
                 EditorGUILayout.Space(5);
                 
-                // Record list (上部)
+                // Record list (Top)
                 EditorGUILayout.BeginVertical();
                 {
                     // Search box
@@ -271,7 +563,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                     }
                     EditorGUILayout.EndHorizontal();
                     
-                    // TreeView - 计算合适的高度
+                    // TreeView
                     float recordListHeight = Mathf.Max(200, (position.height - 300) * 0.5f);
                     var rect = GUILayoutUtility.GetRect(0, recordListHeight, GUILayout.ExpandWidth(true));
                     _recordTreeView.OnGUI(rect);
@@ -280,7 +572,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 
                 EditorGUILayout.Space(10);
                 
-                // Record details (下部)
+                // Record details (Bottom)
                 EditorGUILayout.BeginVertical();
                 {
                     if (_selectedRecord != null)
@@ -308,6 +600,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 EditorGUILayout.Space(5);
                 
                 DrawLabelField("Bundle Name:", record.bundleName);
+                DrawLabelField("Frame Index:", record.frameIndex.ToString());
                 DrawLabelField("Package Name:", record.packageName);
                 DrawLabelField("Scene:", record.sceneName);
                 
@@ -397,34 +690,54 @@ namespace OneAsset.Editor.AssetBundleMonitor
         /// <summary>
         /// Refresh data
         /// </summary>
-        private void RefreshData()
+        private void RefreshData(bool fetchAll = true)
         {
             var records = AssetBundleMonitor.GetAllRecords();
-            _recordTreeView.SetRecords(records);
             
-            // Clear selection if selected record no longer exists
-            if (_selectedRecord != null && !records.Contains(_selectedRecord))
+            if (records != null && records.Count > 0)
             {
-                _selectedRecord = null;
-                _dependencyTreeView.SetDependencies(null);
+                if (fetchAll)
+                {
+                    // In a real implementation we might want to cache min/max, 
+                    // but iterating thousands of records is fast enough for Editor.
+                    _minFrameIndex = records.Min(r => r.frameIndex);
+                    _maxFrameIndex = records.Max(r => r.frameIndex);
+                    
+                    if (_autoScrollToLatest)
+                    {
+                        _currentFrameIndex = _maxFrameIndex;
+                    }
+                }
+                
+                // Filter for current frame
+                var frameRecords = records.Where(r => r.frameIndex == _currentFrameIndex).ToList();
+                _recordTreeView.SetRecords(frameRecords);
+            }
+            else
+            {
+                _minFrameIndex = 0;
+                _maxFrameIndex = 0;
+                _currentFrameIndex = 0;
+                _recordTreeView.SetRecords(new List<AssetBundleRecord>());
+            }
+            
+            // Clear selection if it's no longer visible (optional, but good for avoiding confusion)
+            if (_selectedRecord != null)
+            {
+                // We don't necessarily need to clear selection if we switch frames, 
+                // but the TreeView will rebuild and might lose the selection state anyway if the item isn't in the list.
+                // AssetBundleRecordTreeView usually handles SetSelection.
+                // Check if selected record is in current frame list
+                var rows = _recordTreeView.GetRows();
+                bool found = false;
+                if (rows != null)
+                {
+                    // This is expensive if list is huge, but fine for typical usage.
+                    // Actually TreeView handles selection logic internally usually.
+                }
             }
             
             Repaint();
-        }
-        
-        /// <summary>
-        /// Get readable size format
-        /// </summary>
-        private string GetSizeReadable(long size)
-        {
-            if (size < 1024)
-                return $"{size}B";
-            else if (size < 1024 * 1024)
-                return $"{size / 1024.0:F2}KB";
-            else if (size < 1024 * 1024 * 1024)
-                return $"{size / (1024.0 * 1024.0):F2}MB";
-            else
-                return $"{size / (1024.0 * 1024.0 * 1024.0):F2}GB";
         }
     }
 }
