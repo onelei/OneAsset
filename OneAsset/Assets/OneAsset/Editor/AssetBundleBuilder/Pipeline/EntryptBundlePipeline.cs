@@ -30,7 +30,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
                             var allBytes = File.ReadAllBytes(path);
                             if (builderPackage.IsEntryptable())
                             {
-                                allBytes = builderPackage.GetEntryptRule().Encrypt(allBytes);
+                                allBytes = builderPackage.GetEncryptRule().Encrypt(allBytes);
                             }
 
                             // Write

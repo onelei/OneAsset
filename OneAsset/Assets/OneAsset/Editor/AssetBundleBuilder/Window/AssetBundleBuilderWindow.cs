@@ -30,14 +30,18 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
             {
                 OnSelectedChange = RefreshPackage
             };
-            if (_setting.packages.Count > 0)
-            {
-                var package = _setting.packages[0];
-                //RefreshBuildVersion
-                package.buildVersion = package.GetDefaultBuildVersion();
-                _encryptRuleTypeIndex = RuleUtility.GetAddressRuleIndex(package.encryptRule);
-                RefreshPackage(_package);
-            }
+        if (_setting.packages.Count > 0)
+        {
+            var package = _setting.packages[0];
+            //RefreshBuildVersion
+            package.buildVersion = package.GetDefaultBuildVersion();
+            RefreshPackage(package);
+        }
+        }
+
+        protected void OnDisable()
+        {
+            Save();
         }
 
         protected override void OnUpdate()
@@ -92,6 +96,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
                             GUILayout.FlexibleSpace();
                             if (GUILayout.Button("Build AssetBundle", GUILayout.Height(50f)))
                             {
+                                Save();
                                 _isBuilding = true;
                             }
                         }
@@ -112,7 +117,17 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
         private void RefreshPackage(AssetBundleBuilderPackage package)
         {
             _package = package;
+            if (_package != null)
+            {
+                _encryptRuleTypeIndex = RuleUtility.GetAddressRuleIndex(_package.encryptRule);
+            }
             _packageTreeView?.SetData(_setting.packages);
+        }
+
+        private void Save()
+        {
+            EditorUtility.SetDirty(_setting);
+            AssetDatabase.SaveAssets();
         }
     }
 }

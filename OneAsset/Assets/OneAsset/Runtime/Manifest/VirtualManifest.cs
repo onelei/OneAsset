@@ -19,9 +19,10 @@ namespace OneAsset.Runtime.Manifest
             get
             {
                 if (_default != null) return _default;
-                var json = File.ReadAllText(OneAssetSetting.ManifestPath);
+                var json = File.ReadAllText(OneAssetSetting.GetManifestPath());
                 _default = JsonUtility.FromJson<VirtualManifest>(json);
-                AssetBundles.Clear();
+                AddressToBundleInfos.Clear();
+                BundleToBundleInfos.Clear();
                 foreach (var package in _default.packages)
                 {
                     foreach (var group in package.groups)
@@ -31,8 +32,9 @@ namespace OneAsset.Runtime.Manifest
                             foreach (var assetInfo in bundleAsset.assets)
                             {
                                 bundleAsset.PackageName = package.name;
-                                AssetBundles.Add(assetInfo.address, bundleAsset);
+                                AddressToBundleInfos.Add(assetInfo.address, bundleAsset);
                             }
+                            BundleToBundleInfos.Add(bundleAsset.name, bundleAsset);
                         }
                     }
                 }
@@ -43,7 +45,7 @@ namespace OneAsset.Runtime.Manifest
 
         public void Save()
         {
-            var path = OneAssetSetting.ManifestPath;
+            var path = OneAssetSetting.GetManifestPath();
 
             if (File.Exists(path))
             {
@@ -54,15 +56,36 @@ namespace OneAsset.Runtime.Manifest
             File.WriteAllText(path, json);
         }
 
-        private static readonly Dictionary<string, BundleInfo> AssetBundles = new Dictionary<string, BundleInfo>();
+        private static readonly Dictionary<string, BundleInfo> AddressToBundleInfos =
+            new Dictionary<string, BundleInfo>();
 
-        public bool TryGetBundleInfo(string address, out BundleInfo bundleInfo) =>
-            AssetBundles.TryGetValue(address, out bundleInfo);
-        
-        
+        private static readonly Dictionary<string, BundleInfo> BundleToBundleInfos =
+            new Dictionary<string, BundleInfo>();
+
+        public bool TryGetBundleInfoByAddress(string address, out BundleInfo bundleInfo) =>
+            AddressToBundleInfos.TryGetValue(address, out bundleInfo);
+
+        public bool TryGetBundleInfoByBundleName(string bundleName, out BundleInfo bundleInfo) =>
+            BundleToBundleInfos.TryGetValue(bundleName, out bundleInfo);
+
+        public bool TryGetEncryptRule(string packageName, out string encryptRule)
+        {
+            foreach (var packageInfo in packages)
+            {
+                if (packageInfo.name == packageName)
+                {
+                    encryptRule = packageInfo.encryptRule;
+                    return true;
+                }
+            }
+
+            encryptRule = null;
+            return false;
+        }
+
         public string GetAssetPathByAddress(string address)
         {
-            if (AssetBundles.TryGetValue(address, out var bundleInfo))
+            if (AddressToBundleInfos.TryGetValue(address, out var bundleInfo))
             {
                 return bundleInfo.GetAssetPath(address);
             }
@@ -70,10 +93,10 @@ namespace OneAsset.Runtime.Manifest
             OneAssetLogger.LogWarning($"Can not get bundle name: {address}");
             return address;
         }
-        
+
         public string GetBundleNameByAddress(string address)
         {
-            if (AssetBundles.TryGetValue(address, out var bundleInfo))
+            if (AddressToBundleInfos.TryGetValue(address, out var bundleInfo))
             {
                 return bundleInfo.name;
             }
@@ -84,7 +107,7 @@ namespace OneAsset.Runtime.Manifest
 
         public List<string> GetAllDependsBundleByAddress(string address)
         {
-            if (AssetBundles.TryGetValue(address, out var bundleInfo))
+            if (AddressToBundleInfos.TryGetValue(address, out var bundleInfo))
             {
                 return bundleInfo.depends;
             }
@@ -98,6 +121,8 @@ namespace OneAsset.Runtime.Manifest
     public class PackageInfo
     {
         public string name;
+        public string encryptRule;
+        public string compressMode;
         public List<GroupInfo> groups = new List<GroupInfo>();
     }
 
@@ -105,18 +130,20 @@ namespace OneAsset.Runtime.Manifest
     public class GroupInfo
     {
         public string name;
+        public string language;
         public List<BundleInfo> bundles = new List<BundleInfo>();
     }
 
     [Serializable]
     public class BundleInfo
     {
-        [NonSerialized]public string PackageName;
+        [NonSerialized] public string PackageName;
         public string name;
         public string hash;
+        public uint crc;
         public List<AssetInfo> assets = new List<AssetInfo>();
         public List<string> depends = new List<string>();
-        
+
         public string GetAssetPath(string address)
         {
             foreach (var assetInfo in assets)

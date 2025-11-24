@@ -23,6 +23,12 @@ namespace OneAsset.Runtime.Rule
             var decryptedStream = new XorDecryptStream(path, XorKey);
             return AssetBundle.LoadFromStream(decryptedStream, crc);
         }
+        
+        public AssetBundleCreateRequest DecryptAsync(string path, uint crc)
+        {
+            var decryptedStream = new XorDecryptStream(path, XorKey);
+            return AssetBundle.LoadFromStreamAsync(decryptedStream, crc);
+        }
 
         private class XorDecryptStream : FileStream
         {

@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.Networking;
 using Cysharp.Threading.Tasks;
 using OneAsset.Runtime.Manifest;
+using OneAsset.Runtime.Rule;
 
 namespace OneAsset.Runtime.Loader
 {
@@ -24,10 +24,11 @@ namespace OneAsset.Runtime.Loader
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
     }
-    
+
     public class AssetBundleLoader : ILoader
     {
         private readonly Dictionary<string, AssetBundle> _loadedAssetBundles = new Dictionary<string, AssetBundle>();
+        private readonly Dictionary<string, IEntryptRule> _entryptRules = new Dictionary<string, IEntryptRule>();
 
         // Events for monitoring
         public static event Action<BundleLoadEventArgs> OnBundleLoadStart;
@@ -35,14 +36,43 @@ namespace OneAsset.Runtime.Loader
         public static event Action<BundleLoadEventArgs> OnBundleLoadFailed;
         public static event Action<string> OnBundleUnload;
 
-        private BundleInfo GetBundleInfo(string address)
+        private BundleInfo GetBundleInfoByAddress(string address)
         {
-            return VirtualManifest.Default.TryGetBundleInfo(address, out var bundleInfo) ? bundleInfo : null;
+            return VirtualManifest.Default.TryGetBundleInfoByAddress(address, out var bundleInfo) ? bundleInfo : null;
+        }
+
+        private BundleInfo GetBundleInfoByBundleName(string bundleName)
+        {
+            return VirtualManifest.Default.TryGetBundleInfoByBundleName(bundleName, out var bundleInfo)
+                ? bundleInfo
+                : null;
+        }
+
+        private IEntryptRule GetEncryptRule(string packageName)
+        {
+            IEntryptRule encryptRule = null;
+            if (_entryptRules.TryGetValue(packageName, out encryptRule)) return encryptRule;
+            if (VirtualManifest.Default.TryGetEncryptRule(packageName, out var ruleKey))
+            {
+                var ruleType = Type.GetType(ruleKey);
+                if (ruleType != null)
+                {
+                    encryptRule = (IEntryptRule) Activator.CreateInstance(ruleType);
+                }
+            }
+            else
+            {
+                encryptRule = new EntryptDisable();
+            }
+
+            _entryptRules[packageName] = encryptRule;
+
+            return encryptRule;
         }
 
         public T LoadAsset<T>(string assetName) where T : UnityEngine.Object
         {
-            var bundleInfo = GetBundleInfo(assetName);
+            var bundleInfo = GetBundleInfoByAddress(assetName);
             if (bundleInfo == null)
                 return default(T);
             var bundleName = bundleInfo.name;
@@ -59,7 +89,7 @@ namespace OneAsset.Runtime.Loader
 
         public async UniTaskVoid LoadAssetAsync<T>(string assetName, Action<T> onComplete) where T : UnityEngine.Object
         {
-            var bundleInfo = GetBundleInfo(assetName);
+            var bundleInfo = GetBundleInfoByAddress(assetName);
             var bundleName = bundleInfo.name;
             var packageName = bundleInfo.PackageName;
             await LoadAssetBundleAsync(packageName, bundleName, assetName, bundleInfo, true);
@@ -74,7 +104,7 @@ namespace OneAsset.Runtime.Loader
 
         public void UnloadAsset(string assetName, bool unloadAllLoadedObjects = true)
         {
-            var bundleInfo = GetBundleInfo(assetName);
+            var bundleInfo = GetBundleInfoByAddress(assetName);
             var bundleName = bundleInfo.name;
             UnloadAssetBundle(bundleName);
         }
@@ -85,12 +115,12 @@ namespace OneAsset.Runtime.Loader
             var bundle = _loadedAssetBundles[bundleName];
             bundle.Unload(unloadAllLoadedObjects);
             _loadedAssetBundles.Remove(bundleName);
-            
+
             OnBundleUnload?.Invoke(bundleName);
         }
 
         // LoadAssetBundle with event
-        private AssetBundle LoadAssetBundle(string packageName, string bundleName, string assetAddress = "", 
+        private AssetBundle LoadAssetBundle(string packageName, string bundleName, string assetAddress = "",
             BundleInfo bundleInfo = null, bool isAsync = false)
         {
             if (_loadedAssetBundles.ContainsKey(bundleName))
@@ -98,35 +128,53 @@ namespace OneAsset.Runtime.Loader
                 return _loadedAssetBundles[bundleName];
             }
 
+            if (bundleInfo == null)
+            {
+                bundleInfo = GetBundleInfoByBundleName(bundleName);
+            }
+
+            if (bundleInfo == null)
+            {
+                throw new Exception($"Bundle {bundleName} not found");
+            }
+
             var eventArgs = new BundleLoadEventArgs
             {
                 BundleName = bundleName,
                 PackageName = packageName,
                 AssetAddress = assetAddress,
-                AssetPath = bundleInfo?.GetAssetPath(assetAddress) ?? "",
-                Dependencies = bundleInfo?.depends ?? new List<string>(),
+                AssetPath = bundleInfo.GetAssetPath(assetAddress) ?? "",
+                Dependencies = bundleInfo.depends ?? new List<string>(),
                 IsAsync = isAsync,
                 StartTime = DateTime.Now
             };
-            
+
             OnBundleLoadStart?.Invoke(eventArgs);
 
             var bundlePath = GetAssetBundlePath(packageName, bundleName);
-            var bundle = AssetBundle.LoadFromFile(bundlePath);
-            
+            var encryptRule = GetEncryptRule(packageName);
+            if (encryptRule == null)
+            {
+                throw new Exception($"No entrypt rule found, packageName = {packageName}");
+            }
+
+            var bundle = encryptRule.Decrypt(bundlePath, bundleInfo.crc);
+
             eventArgs.EndTime = DateTime.Now;
-            
+
             if (bundle != null)
             {
                 _loadedAssetBundles.Add(bundleName, bundle);
-                
+
                 try
                 {
                     var fileInfo = new System.IO.FileInfo(bundlePath);
                     eventArgs.BundleSize = fileInfo.Length;
                 }
-                catch { }
-                
+                catch
+                {
+                }
+
                 OnBundleLoadSuccess?.Invoke(eventArgs);
             }
             else
@@ -148,6 +196,16 @@ namespace OneAsset.Runtime.Loader
                 return _loadedAssetBundles[bundleName];
             }
 
+            if (bundleInfo == null)
+            {
+                bundleInfo = GetBundleInfoByBundleName(bundleName);
+            }
+
+            if (bundleInfo == null)
+            {
+                throw new Exception($"Bundle {bundleName} not found");
+            }
+
             BundleLoadEventArgs eventArgs = null;
             if (invokeEvent)
             {
@@ -156,67 +214,62 @@ namespace OneAsset.Runtime.Loader
                     BundleName = bundleName,
                     PackageName = packageName,
                     AssetAddress = assetAddress,
-                    AssetPath = bundleInfo?.GetAssetPath(assetAddress) ?? "",
-                    Dependencies = bundleInfo?.depends ?? new List<string>(),
+                    AssetPath = bundleInfo.GetAssetPath(assetAddress) ?? "",
+                    Dependencies = bundleInfo.depends ?? new List<string>(),
                     IsAsync = true,
                     StartTime = DateTime.Now
                 };
-                
+
                 OnBundleLoadStart?.Invoke(eventArgs);
             }
 
             var bundlePath = GetAssetBundlePath(packageName, bundleName);
-            using (var request = UnityWebRequestAssetBundle.GetAssetBundle(bundlePath))
+            var entryptRule = GetEncryptRule(packageName);
+            if (entryptRule == null)
             {
-                var operation = request.SendWebRequest();
-                await operation.ToUniTask(cancellationToken: cancellationToken);
+                throw new Exception($"No entrypt rule found, packageName = {packageName}");
+            }
+
+            AssetBundle bundle = null;
+
+            // 根据加密规则类型使用不同的加载方式
+            var request = entryptRule.DecryptAsync(bundlePath, bundleInfo.crc);
+            await request.ToUniTask(cancellationToken: cancellationToken);
+            bundle = request.assetBundle;
+
+            if (invokeEvent)
+                eventArgs.EndTime = DateTime.Now;
+
+            if (bundle != null)
+            {
+                _loadedAssetBundles.Add(bundleName, bundle);
 
                 if (invokeEvent)
-                    eventArgs.EndTime = DateTime.Now;
+                {
+                    try
+                    {
+                        var fileInfo = new System.IO.FileInfo(bundlePath);
+                        eventArgs.BundleSize = fileInfo.Length;
+                    }
+                    catch
+                    {
+                    }
 
-                if (request.isHttpError || request.isNetworkError)
-                {
-                    OneAssetLogger.LogError($"Failed to load AssetBundle: {bundleName}, Error: {request.error}");
-                    
-                    if (invokeEvent)
-                    {
-                        eventArgs.ErrorMessage = request.error;
-                        OnBundleLoadFailed?.Invoke(eventArgs);
-                    }
+                    OnBundleLoadSuccess?.Invoke(eventArgs);
                 }
-                else
+            }
+            else
+            {
+                OneAssetLogger.LogError($"Failed to load AssetBundle: {bundleName}");
+
+                if (invokeEvent)
                 {
-                    var bundle = DownloadHandlerAssetBundle.GetContent(request);
-                    if (bundle != null)
-                    {
-                        _loadedAssetBundles.Add(bundleName, bundle);
-                        
-                        if (invokeEvent)
-                        {
-                            try
-                            {
-                                var fileInfo = new System.IO.FileInfo(bundlePath.Replace("file://", ""));
-                                eventArgs.BundleSize = fileInfo.Length;
-                            }
-                            catch { }
-                            
-                            OnBundleLoadSuccess?.Invoke(eventArgs);
-                        }
-                        
-                        return bundle;
-                    }
-                    else
-                    {
-                        if (invokeEvent)
-                        {
-                            eventArgs.ErrorMessage = "DownloadHandlerAssetBundle.GetContent returned null";
-                            OnBundleLoadFailed?.Invoke(eventArgs);
-                        }
-                    }
+                    eventArgs.ErrorMessage = $"AssetBundle.LoadFromFileAsync returned null, path: {bundlePath}";
+                    OnBundleLoadFailed?.Invoke(eventArgs);
                 }
             }
 
-            return null;
+            return bundle;
         }
 
         // LoadAsset

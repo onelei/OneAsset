@@ -5,7 +5,10 @@ namespace OneAsset.Runtime
 {
     public static class OneAssetSetting
     {
-        public static readonly string ManifestPath = Path.Combine(Application.dataPath, "OneAssetManifest.json");
+        public static string GetManifestPath()
+        {
+            return Path.Combine(GetAssetBundlesRootPath(), "OneAssetManifest.json");
+        }
 
         public static string GetAssetBundlesRootPath()
         {

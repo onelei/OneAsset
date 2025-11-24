@@ -414,7 +414,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
         /// </summary>
         private void LoadLatestReport()
         {
-            var assetBundlesPath = OneAssetSetting.GetAssetBundlesOriginPath();
+            var assetBundlesPath = OneAssetSetting.GetAssetBundlesOutputPath();
             if (!Directory.Exists(assetBundlesPath))
             {
                 EditorUtility.DisplayDialog("Error", "AssetBundles directory does not exist", "OK");

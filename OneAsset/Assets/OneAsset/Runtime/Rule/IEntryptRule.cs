@@ -6,6 +6,7 @@ namespace OneAsset.Runtime.Rule
     {
         byte[] Encrypt(byte[] bytes);
         AssetBundle Decrypt(string path, uint crc);
+        AssetBundleCreateRequest DecryptAsync(string path, uint crc);
     }
 
     public class EntryptDisable : IEntryptRule
@@ -18,6 +19,11 @@ namespace OneAsset.Runtime.Rule
         public AssetBundle Decrypt(string path, uint crc)
         {
             return AssetBundle.LoadFromFile(path, crc);
+        }
+
+        public AssetBundleCreateRequest DecryptAsync(string path, uint crc)
+        {
+            return AssetBundle.LoadFromFileAsync(path, crc);
         }
     }
 }

@@ -80,8 +80,13 @@ namespace OneAsset.Editor.AssetBundleBuilder.Data
         }
 
         private static readonly Dictionary<string, IEntryptRule> EntryptRules = new Dictionary<string, IEntryptRule>();
+        
+        public string GetEncryptRuleTypeName()
+        {
+            return GetEncryptRule().GetType().FullName;
+        }
 
-        public IEntryptRule GetEntryptRule()
+        public IEntryptRule GetEncryptRule()
         {
             if (!string.IsNullOrEmpty(encryptRule))
             {

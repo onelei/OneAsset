@@ -22,5 +22,10 @@ namespace OneAsset.Runtime.Rule
         {
             return AssetBundle.LoadFromFile(path, crc, Offset);
         }
+        
+        public AssetBundleCreateRequest DecryptAsync(string path, uint crc)
+        {
+            return AssetBundle.LoadFromFileAsync(path, crc, Offset);
+        }
     }
 }

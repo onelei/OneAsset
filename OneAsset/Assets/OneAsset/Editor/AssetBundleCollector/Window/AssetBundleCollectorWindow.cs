@@ -209,7 +209,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                 manifest.packages.Add(packageInfo);
             }
 
-            var outputPath = OneAssetSetting.ManifestPath;
+            var outputPath = OneAssetSetting.GetManifestPath();
             try
             {
                 File.WriteAllText(outputPath, JsonUtility.ToJson(manifest, true));

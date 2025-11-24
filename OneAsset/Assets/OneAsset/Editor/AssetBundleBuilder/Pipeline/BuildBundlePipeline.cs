@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using OneAsset.Editor.AssetBundleCollector.Data;
 using OneAsset.Runtime;
 using UnityEditor;
@@ -37,12 +38,15 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             {
                 if (packageName == package.name)
                 {
+                    package.encryptRule = builderPackage.GetEncryptRuleTypeName();
+                    package.compressMode = builderPackage.compressMode.ToString();
                     foreach (var group in package.groups)
                     {
                         foreach (var bundleAsset in group.bundles)
                         {
                             var assetBundleName = bundleAsset.name;
                             bundleAsset.hash = unityManifest.GetAssetBundleHash(assetBundleName).ToString();
+                            BuildPipeline.GetCRCForAssetBundle(Path.Combine(outputPath, assetBundleName), out bundleAsset.crc);
                             bundleAsset.depends.Clear();
                             var depends = unityManifest.GetAllDependencies(assetBundleName);
                             bundleAsset.depends.AddRange(depends);

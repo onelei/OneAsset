@@ -173,9 +173,11 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
 
             buildReport.SaveReport(reportPath);
 
+            var finalOutputPath = builderPackage.GetFinalOutputPath();
+            buildReport.SaveReport(Path.Combine(finalOutputPath, reportFileName));
+            
             // Also save a copy of the latest report (for quick access)
-            var latestReportPath = Path.Combine(outputPath, "BuildReport_Latest.json");
-            buildReport.SaveReport(latestReportPath);
+            buildReport.SaveReport(Path.Combine(finalOutputPath, "BuildReport_Latest.json"));
         }
 
         /// <summary>

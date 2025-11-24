@@ -15,7 +15,7 @@ MonoBehaviour:
   showPackage: 1
   showRuleAlias: 0
   uniqueBundleName: 1
-  enableAddressable: 0
+  enableAddressable: 1
   locationToLower: 0
   includeAssetGuid: 0
   ignoreDefaultType: 1
