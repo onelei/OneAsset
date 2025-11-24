@@ -473,7 +473,17 @@ namespace OneAsset.Editor.AssetBundleMonitor
                         AssetBundleMonitor.LoadSession(path);
                         _autoScrollToLatest = false;
                         RefreshData(true);
-                        _currentFrameIndex = _minFrameIndex; // Jump to start after load
+                        
+                        // Jump to start after load - use profilerData if available
+                        var loadedSession = AssetBundleMonitor.CurrentSession;
+                        if (loadedSession?.profilerData != null && loadedSession.profilerData.Count > 0)
+                        {
+                            _currentFrameIndex = loadedSession.profilerData[0].frameIndex;
+                        }
+                        else
+                        {
+                            _currentFrameIndex = _minFrameIndex;
+                        }
                         RefreshData(false);
                     }
                 }
@@ -491,34 +501,89 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 GUILayout.Space(20);
                 
                 // Frame Navigation
+                var session = AssetBundleMonitor.CurrentSession;
+                var profilerData = session?.profilerData;
+                
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.FirstKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
                 {
                     _autoScrollToLatest = false;
-                    _currentFrameIndex = _minFrameIndex;
+                    if (profilerData != null && profilerData.Count > 0)
+                    {
+                        _currentFrameIndex = profilerData[0].frameIndex;
+                    }
+                    else
+                    {
+                        _currentFrameIndex = _minFrameIndex;
+                    }
                     RefreshData(false);
                 }
 
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.PrevKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
                 {
                     _autoScrollToLatest = false;
-                    _currentFrameIndex = Mathf.Max(_minFrameIndex, _currentFrameIndex - 1);
+                    if (profilerData != null && profilerData.Count > 0)
+                    {
+                        var currentIdx = profilerData.FindIndex(d => d.frameIndex == _currentFrameIndex);
+                        if (currentIdx > 0)
+                        {
+                            _currentFrameIndex = profilerData[currentIdx - 1].frameIndex;
+                        }
+                        else if (currentIdx == -1 && profilerData.Count > 0)
+                        {
+                            _currentFrameIndex = profilerData[profilerData.Count - 1].frameIndex;
+                        }
+                    }
+                    else
+                    {
+                        _currentFrameIndex = Mathf.Max(_minFrameIndex, _currentFrameIndex - 1);
+                    }
                     RefreshData(false);
                 }
 
-                int lastFrame = (_minFrameIndex == 0 && _maxFrameIndex == 0) ? 0 : _maxFrameIndex;
-                GUILayout.Label($"Frame: {_currentFrameIndex} / {lastFrame}", EditorStyles.miniLabel, GUILayout.Width(120));
+                int lastFrameIndex = 0;
+                if (profilerData != null && profilerData.Count > 0)
+                {
+                    lastFrameIndex = profilerData[profilerData.Count - 1].frameIndex;
+                }
+                else
+                {
+                    lastFrameIndex = _maxFrameIndex;
+                }
+                GUILayout.Label($"Frame: {_currentFrameIndex} / {lastFrameIndex}", EditorStyles.miniLabel, GUILayout.Width(120));
 
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.NextKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
                 {
                     _autoScrollToLatest = false;
-                    _currentFrameIndex = Mathf.Min(_maxFrameIndex, _currentFrameIndex + 1);
+                    if (profilerData != null && profilerData.Count > 0)
+                    {
+                        var currentIdx = profilerData.FindIndex(d => d.frameIndex == _currentFrameIndex);
+                        if (currentIdx >= 0 && currentIdx < profilerData.Count - 1)
+                        {
+                            _currentFrameIndex = profilerData[currentIdx + 1].frameIndex;
+                        }
+                        else if (currentIdx == -1 && profilerData.Count > 0)
+                        {
+                            _currentFrameIndex = profilerData[0].frameIndex;
+                        }
+                    }
+                    else
+                    {
+                        _currentFrameIndex = Mathf.Min(_maxFrameIndex, _currentFrameIndex + 1);
+                    }
                     RefreshData(false);
                 }
 
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Animation.LastKey"), EditorStyles.toolbarButton, GUILayout.Width(30)))
                 {
                     _autoScrollToLatest = false;
-                    _currentFrameIndex = _maxFrameIndex;
+                    if (profilerData != null && profilerData.Count > 0)
+                    {
+                        _currentFrameIndex = profilerData[profilerData.Count - 1].frameIndex;
+                    }
+                    else
+                    {
+                        _currentFrameIndex = _maxFrameIndex;
+                    }
                     RefreshData(false);
                 }
                 
