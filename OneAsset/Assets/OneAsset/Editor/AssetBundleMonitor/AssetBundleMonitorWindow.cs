@@ -146,17 +146,13 @@ namespace OneAsset.Editor.AssetBundleMonitor
         private void DrawProfilerSection()
         {
             var session = AssetBundleMonitor.CurrentSession;
-            if (session == null || session.profilerData == null)
-            {
-                return;
-            }
 
             EditorGUILayout.BeginVertical(_boxStyle);
             // GUILayout.Label("Profiler", _headerStyle);
 
             EditorGUILayout.BeginHorizontal();
 
-            // Left: Legend only
+            // Left: Legend only (always visible)
             EditorGUILayout.BeginVertical(GUILayout.Width(150)); // Increased width for better readability
             {
                 GUILayout.Label("AssetBundles", EditorStyles.boldLabel);
@@ -166,8 +162,20 @@ namespace OneAsset.Editor.AssetBundleMonitor
             }
             EditorGUILayout.EndVertical();
 
+            // Draw vertical separator line
+            var separatorRect = GUILayoutUtility.GetRect(1, 150, GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
+            EditorGUI.DrawRect(separatorRect, Color.black);
+
             // Right: Graph
-            DrawProfilerGraph(session.profilerData);
+            if (session?.profilerData != null)
+            {
+                DrawProfilerGraph(session.profilerData);
+            }
+            else
+            {
+                // Empty space when no data
+                GUILayoutUtility.GetRect(0, 150, GUILayout.ExpandWidth(true));
+            }
 
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
@@ -451,6 +459,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                         _currentFrameIndex = 0;
                         _minFrameIndex = 0;
                         _maxFrameIndex = 0;
+                        _selectedRecord = null;
                         RefreshData(true);
                     }
                 }
@@ -575,14 +584,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 // Record details (Bottom)
                 EditorGUILayout.BeginVertical();
                 {
-                    if (_selectedRecord != null)
-                    {
-                        DrawRecordDetails(_selectedRecord);
-                    }
-                    else
-                    {
-                        EditorGUILayout.HelpBox("Select a record from the list above to view details", MessageType.Info);
-                    }
+                    DrawRecordDetails(_selectedRecord);
                 }
                 EditorGUILayout.EndVertical();
             }
@@ -597,6 +599,14 @@ namespace OneAsset.Editor.AssetBundleMonitor
             EditorGUILayout.BeginVertical(_boxStyle);
             {
                 GUILayout.Label("Record Details", EditorStyles.boldLabel);
+                
+                if (record == null)
+                {
+                    EditorGUILayout.HelpBox("Select a record from the list above to view details", MessageType.Info);
+                    EditorGUILayout.EndVertical();
+                    return;
+                }
+
                 EditorGUILayout.Space(5);
                 
                 DrawLabelField("Bundle Name:", record.bundleName);
