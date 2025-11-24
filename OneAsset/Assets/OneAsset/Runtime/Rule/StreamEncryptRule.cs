@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace OneAsset.Runtime.Rule
 {
-    public class StreamEntryptRule : IEntryptRule
+    public class StreamEncryptRule : IEncryptRule
     {
         private const byte XorKey = 0xAB;
 

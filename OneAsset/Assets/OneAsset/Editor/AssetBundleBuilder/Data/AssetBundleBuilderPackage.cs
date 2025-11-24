@@ -14,7 +14,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Data
         public string packageName;
         public string buildVersion = DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss");
         public EBuildMode buildMode = EBuildMode.ForceRebuild;
-        public string encryptRule = nameof(OffsetEntryptRule);
+        public string encryptRule = nameof(OffsetEncryptRule);
         public ECompressMode compressMode = ECompressMode.LZ4;
         public ENameMode nameMode = ENameMode.HashName;
 
@@ -74,33 +74,33 @@ namespace OneAsset.Editor.AssetBundleBuilder.Data
             return DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss");
         }
 
-        public bool IsEntryptable()
+        public bool IsEncryptable()
         {
-            return encryptRule != nameof(EntryptDisable);
+            return encryptRule != nameof(EncryptDisable);
         }
 
-        private static readonly Dictionary<string, IEntryptRule> EntryptRules = new Dictionary<string, IEntryptRule>();
+        private static readonly Dictionary<string, IEncryptRule> EncryptRules = new Dictionary<string, IEncryptRule>();
         
         public string GetEncryptRuleTypeName()
         {
             return GetEncryptRule().GetType().FullName;
         }
 
-        public IEntryptRule GetEncryptRule()
+        public IEncryptRule GetEncryptRule()
         {
             if (!string.IsNullOrEmpty(encryptRule))
             {
-                if (!EntryptRules.TryGetValue(encryptRule, out var entryptRule))
+                if (!EncryptRules.TryGetValue(encryptRule, out var encryptInsRule))
                 {
-                    var ruleType = RuleUtility.GetEntryptRuleType(encryptRule);
+                    var ruleType = RuleUtility.GetEncryptRuleType(encryptRule);
                     if (ruleType != null)
                     {
-                        entryptRule = (IEntryptRule) Activator.CreateInstance(ruleType);
-                        EntryptRules.Add(encryptRule, entryptRule);
+                        encryptInsRule = (IEncryptRule) Activator.CreateInstance(ruleType);
+                        EncryptRules.Add(encryptRule, encryptInsRule);
                     }
                 }
 
-                return entryptRule;
+                return encryptInsRule;
             }
 
             return null;

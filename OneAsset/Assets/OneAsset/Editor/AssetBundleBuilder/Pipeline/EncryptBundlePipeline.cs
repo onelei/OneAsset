@@ -2,7 +2,7 @@
 
 namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
 {
-    public class EntryptBundlePipeline : IPipeline
+    public class EncryptBundlePipeline : IPipeline
     {
         public void Run(PipelineData pipelineData)
         {
@@ -28,7 +28,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
                             var assetBundleName = bundleAsset.name;
                             var path = Path.Combine(outputPath, assetBundleName);
                             var allBytes = File.ReadAllBytes(path);
-                            if (builderPackage.IsEntryptable())
+                            if (builderPackage.IsEncryptable())
                             {
                                 allBytes = builderPackage.GetEncryptRule().Encrypt(allBytes);
                             }

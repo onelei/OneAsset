@@ -2,14 +2,14 @@
 
 namespace OneAsset.Runtime.Rule
 {
-    public interface IEntryptRule
+    public interface IEncryptRule
     {
         byte[] Encrypt(byte[] bytes);
         AssetBundle Decrypt(string path, uint crc);
         AssetBundleCreateRequest DecryptAsync(string path, uint crc);
     }
 
-    public class EntryptDisable : IEntryptRule
+    public class EncryptDisable : IEncryptRule
     {
         public byte[] Encrypt(byte[] bytes)
         {

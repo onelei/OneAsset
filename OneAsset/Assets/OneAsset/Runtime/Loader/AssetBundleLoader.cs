@@ -28,7 +28,7 @@ namespace OneAsset.Runtime.Loader
     public class AssetBundleLoader : ILoader
     {
         private readonly Dictionary<string, AssetBundle> _loadedAssetBundles = new Dictionary<string, AssetBundle>();
-        private readonly Dictionary<string, IEntryptRule> _entryptRules = new Dictionary<string, IEntryptRule>();
+        private readonly Dictionary<string, IEncryptRule> _encryptRules = new Dictionary<string, IEncryptRule>();
 
         // Events for monitoring
         public static event Action<BundleLoadEventArgs> OnBundleLoadStart;
@@ -48,24 +48,24 @@ namespace OneAsset.Runtime.Loader
                 : null;
         }
 
-        private IEntryptRule GetEncryptRule(string packageName)
+        private IEncryptRule GetEncryptRule(string packageName)
         {
-            IEntryptRule encryptRule = null;
-            if (_entryptRules.TryGetValue(packageName, out encryptRule)) return encryptRule;
+            IEncryptRule encryptRule = null;
+            if (_encryptRules.TryGetValue(packageName, out encryptRule)) return encryptRule;
             if (VirtualManifest.Default.TryGetEncryptRule(packageName, out var ruleKey))
             {
                 var ruleType = Type.GetType(ruleKey);
                 if (ruleType != null)
                 {
-                    encryptRule = (IEntryptRule) Activator.CreateInstance(ruleType);
+                    encryptRule = (IEncryptRule) Activator.CreateInstance(ruleType);
                 }
             }
             else
             {
-                encryptRule = new EntryptDisable();
+                encryptRule = new EncryptDisable();
             }
 
-            _entryptRules[packageName] = encryptRule;
+            _encryptRules[packageName] = encryptRule;
 
             return encryptRule;
         }
@@ -155,7 +155,7 @@ namespace OneAsset.Runtime.Loader
             var encryptRule = GetEncryptRule(packageName);
             if (encryptRule == null)
             {
-                throw new Exception($"No entrypt rule found, packageName = {packageName}");
+                throw new Exception($"No encrypt rule found, packageName = {packageName}");
             }
 
             var bundle = encryptRule.Decrypt(bundlePath, bundleInfo.crc);
@@ -224,16 +224,16 @@ namespace OneAsset.Runtime.Loader
             }
 
             var bundlePath = GetAssetBundlePath(packageName, bundleName);
-            var entryptRule = GetEncryptRule(packageName);
-            if (entryptRule == null)
+            var encryptRule = GetEncryptRule(packageName);
+            if (encryptRule == null)
             {
-                throw new Exception($"No entrypt rule found, packageName = {packageName}");
+                throw new Exception($"No encrypt rule found, packageName = {packageName}");
             }
 
             AssetBundle bundle = null;
 
             // 根据加密规则类型使用不同的加载方式
-            var request = entryptRule.DecryptAsync(bundlePath, bundleInfo.crc);
+            var request = encryptRule.DecryptAsync(bundlePath, bundleInfo.crc);
             await request.ToUniTask(cancellationToken: cancellationToken);
             bundle = request.assetBundle;
 

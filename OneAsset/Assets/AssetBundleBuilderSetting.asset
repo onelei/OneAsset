@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   packages:
   - packageName: Bundles
-    buildVersion: 2025-11-24-19-03-47
+    buildVersion: 2025-11-24-19-04-07
     buildMode: 0
-    encryptRule: OffsetEntryptRule
+    encryptRule: StreamEntryptRule
     compressMode: 0
     nameMode: 0
   - packageName: Raw

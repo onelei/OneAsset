@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace OneAsset.Runtime.Rule
 {
-    public class OffsetEntryptRule : IEntryptRule
+    public class OffsetEncryptRule : IEncryptRule
     {
         private const int Offset = 6;
 

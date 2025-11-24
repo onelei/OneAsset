@@ -84,10 +84,10 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
                                 (EBuildMode) EditorGUILayout.EnumPopup("Build Mode", _package.buildMode);
                             EditorGUI.BeginChangeCheck();
                             _encryptRuleTypeIndex = EditorGUILayout.Popup("Encrypt Key", _encryptRuleTypeIndex,
-                                RuleUtility.EntryptRules);
+                                RuleUtility.EncryptRules);
                             if (EditorGUI.EndChangeCheck())
                             {
-                                _package.encryptRule = RuleUtility.EntryptRules[_encryptRuleTypeIndex];
+                                _package.encryptRule = RuleUtility.EncryptRules[_encryptRuleTypeIndex];
                             }
 
                             _package.compressMode =

@@ -8,25 +8,25 @@ namespace OneAsset.Editor.AssetBundleBuilder.Rule
 {
     public static class RuleUtility
     {
-        public static string[] EntryptRules { get; private set; }
-        private static readonly Dictionary<string, Type> EntryptRulesTypes = new Dictionary<string, Type>();
+        public static string[] EncryptRules { get; private set; }
+        private static readonly Dictionary<string, Type> EncryptRulesTypes = new Dictionary<string, Type>();
 
         static RuleUtility()
         {
-            //EntryptRules
+            //EncryptRules
             var stringList = ListPool<string>.Get();
-            var ruleTypes = TypeCache.GetTypesDerivedFrom<IEntryptRule>();
-            EntryptRulesTypes.Clear();
+            var ruleTypes = TypeCache.GetTypesDerivedFrom<IEncryptRule>();
+            EncryptRulesTypes.Clear();
             foreach (var type in ruleTypes)
             {
                 stringList.Add(type.Name);
-                EntryptRulesTypes.Add(type.Name, type);
+                EncryptRulesTypes.Add(type.Name, type);
             }
 
-            EntryptRules = stringList.ToArray();
+            EncryptRules = stringList.ToArray();
         }
 
-        public static int GetAddressRuleIndex(string ruleName) => GetRuleIndex(EntryptRules, ruleName);
+        public static int GetAddressRuleIndex(string ruleName) => GetRuleIndex(EncryptRules, ruleName);
 
         private static int GetRuleIndex(string[] rules, string ruleName)
         {
@@ -39,7 +39,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Rule
             return 0;
         }
 
-        public static Type GetEntryptRuleType(string typeName) => GetRuleType(EntryptRulesTypes, typeName);
+        public static Type GetEncryptRuleType(string typeName) => GetRuleType(EncryptRulesTypes, typeName);
 
         private static Type GetRuleType(Dictionary<string, Type> types, string typeName)
         {
