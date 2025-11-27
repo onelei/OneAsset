@@ -1,5 +1,6 @@
 ﻿using OneAsset.Runtime;
 using System.Collections;
+using OneAsset.Runtime.Rule;
 using UnityEngine;
 
 namespace OneAsset.Samples
@@ -16,7 +17,7 @@ namespace OneAsset.Samples
         {
             //Init
             OneAssets.Init(playMode);
-
+            OneAssets.SetPackage(new OneAssetPackage("Bundles", new OffsetEncryptRule()));
             //Sync
             var prefabAsset = OneAssets.LoadAsset<GameObject>(assetPath);
             _uiSample = Instantiate(prefabAsset, transform, false);

@@ -34,6 +34,7 @@ namespace OneAsset.Runtime.Manifest
                                 bundleAsset.PackageName = package.name;
                                 AddressToBundleInfos.Add(assetInfo.address, bundleAsset);
                             }
+
                             BundleToBundleInfos.Add(bundleAsset.name, bundleAsset);
                         }
                     }
@@ -146,6 +147,8 @@ namespace OneAsset.Runtime.Manifest
 
         public string GetAssetPath(string address)
         {
+            if (string.IsNullOrEmpty(address))
+                return string.Empty;
             foreach (var assetInfo in assets)
             {
                 if (assetInfo.address == address)
