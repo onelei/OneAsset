@@ -3,6 +3,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+using OneAsset.Runtime.Loader;
+using OneAsset.Runtime.Monitor;
 
 namespace OneAsset.Editor.AssetBundleMonitor
 {
@@ -845,23 +847,6 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 _currentFrameIndex = 0;
                 _recordTreeView.SetRecords(new List<AssetBundleRecord>());
             }
-
-            // Clear selection if it's no longer visible (optional, but good for avoiding confusion)
-            if (_selectedRecord != null)
-            {
-                // We don't necessarily need to clear selection if we switch frames, 
-                // but the TreeView will rebuild and might lose the selection state anyway if the item isn't in the list.
-                // AssetBundleRecordTreeView usually handles SetSelection.
-                // Check if selected record is in current frame list
-                var rows = _recordTreeView.GetRows();
-                bool found = false;
-                if (rows != null)
-                {
-                    // This is expensive if list is huge, but fine for typical usage.
-                    // Actually TreeView handles selection logic internally usually.
-                }
-            }
-
             Repaint();
         }
     }

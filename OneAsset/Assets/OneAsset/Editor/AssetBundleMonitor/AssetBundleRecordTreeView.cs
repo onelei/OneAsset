@@ -3,6 +3,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+using OneAsset.Runtime.Loader;
+using OneAsset.Runtime.Monitor;
 
 namespace OneAsset.Editor.AssetBundleMonitor
 {

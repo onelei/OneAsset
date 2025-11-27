@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using OneAsset.Runtime.Loader;
+using OneAsset.Runtime.Monitor;
+using RuntimeAssetBundleMonitor = OneAsset.Runtime.Monitor.AssetBundleMonitor;
 
 namespace OneAsset.Editor.AssetBundleMonitor
 {
     /// <summary>
     /// AssetBundle load monitor (Editor only)
-    /// Subscribes to AssetBundleLoader events to monitor bundle loading
+    /// Subscribes to AssetBundleLoadMonitor events and collects runtime data
     /// </summary>
     public static class AssetBundleMonitor
     {
@@ -22,14 +23,11 @@ namespace OneAsset.Editor.AssetBundleMonitor
         // Session data
         private static MonitorSessionData _currentSession;
 
-        private static readonly Dictionary<string, AssetBundleRecord> _loadingBundles =
+        private static readonly Dictionary<string, AssetBundleRecord> LoadingBundles =
             new Dictionary<string, AssetBundleRecord>();
 
-        private static readonly Dictionary<string, int> _bundleReferenceCounts = new Dictionary<string, int>();
-
-        // Flag to check if events are already subscribed to prevent duplicate subscriptions
-        private static bool _isSubscribed = false;
-
+        private static readonly Dictionary<string, int> BundleReferenceCounts = new Dictionary<string, int>();
+ 
         private static int _lastFrameIndex = -1;
         private static int _currentFrameLoadedCount = 0;
         private static int _currentFrameUnloadedCount = 0;
@@ -50,10 +48,10 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 StartRecording();
             }
 
-            AssetBundleLoader.OnBundleLoadStart += OnBundleLoadStart;
-            AssetBundleLoader.OnBundleLoadSuccess += OnBundleLoadSuccess;
-            AssetBundleLoader.OnBundleLoadFailed += OnBundleLoadFailed;
-            AssetBundleLoader.OnBundleUnload += OnBundleUnload;
+            RuntimeAssetBundleMonitor.OnBundleLoadStart += OnBundleLoadStart;
+            RuntimeAssetBundleMonitor.OnBundleLoadSuccess += OnBundleLoadSuccess;
+            RuntimeAssetBundleMonitor.OnBundleLoadFailed += OnBundleLoadFailed;
+            RuntimeAssetBundleMonitor.OnBundleUnload += OnBundleUnload;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             EditorApplication.update += Update;
         }
@@ -63,7 +61,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
             if (!_shouldRecord || !Application.isPlaying || _currentSession == null) 
                 return;
 
-            int currentFrame = Time.frameCount;
+            var currentFrame = Time.frameCount;
             if (currentFrame != _lastFrameIndex)
             {
                 // Record data for the frame that just finished (or the current state if it's the first frame)
@@ -72,7 +70,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                     var frameData = new ProfilerFrameData
                     {
                         frameIndex = _lastFrameIndex,
-                        totalBundleCount = _bundleReferenceCounts.Count,
+                        totalBundleCount = BundleReferenceCounts.Count,
                         loadedCount = _currentFrameLoadedCount,
                         unloadedCount = _currentFrameUnloadedCount
                     };
@@ -95,32 +93,16 @@ namespace OneAsset.Editor.AssetBundleMonitor
         {
             if (state == PlayModeStateChange.ExitingPlayMode && _shouldRecord)
             {
-                AssetBundleLoader.OnBundleLoadStart -= OnBundleLoadStart;
-                AssetBundleLoader.OnBundleLoadSuccess -= OnBundleLoadSuccess;
-                AssetBundleLoader.OnBundleLoadFailed -= OnBundleLoadFailed;
-                AssetBundleLoader.OnBundleUnload -= OnBundleUnload;
+                RuntimeAssetBundleMonitor.OnBundleLoadStart -= OnBundleLoadStart;
+                RuntimeAssetBundleMonitor.OnBundleLoadSuccess -= OnBundleLoadSuccess;
+                RuntimeAssetBundleMonitor.OnBundleLoadFailed -= OnBundleLoadFailed;
+                RuntimeAssetBundleMonitor.OnBundleUnload -= OnBundleUnload;
 
                 StopRecording();
                 Debug.Log($"[AssetBundle Monitor] Stopped recording, total records: {_currentSession.records.Count}");
             }
         }
-
-        /// <summary>
-        /// Ensure events are subscribed (prevents subscription loss due to domain reload)
-        /// </summary>
-        private static void EnsureSubscribed()
-        {
-            if (_isSubscribed)
-                return;
-
-            AssetBundleLoader.OnBundleLoadStart += OnBundleLoadStart;
-            AssetBundleLoader.OnBundleLoadSuccess += OnBundleLoadSuccess;
-            AssetBundleLoader.OnBundleLoadFailed += OnBundleLoadFailed;
-            AssetBundleLoader.OnBundleUnload += OnBundleUnload;
-
-            _isSubscribed = true;
-        }
-
+ 
         /// <summary>
         /// Start recording (only sets the flag, actual recording starts at runtime)
         /// </summary>
@@ -171,8 +153,8 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 sessionStartTime = DateTime.Now,
                 isRecording = true
             };
-            _loadingBundles.Clear();
-            _bundleReferenceCounts.Clear();
+            LoadingBundles.Clear();
+            BundleReferenceCounts.Clear();
             
             _lastFrameIndex = Time.frameCount;
             _currentFrameLoadedCount = 0;
@@ -189,8 +171,8 @@ namespace OneAsset.Editor.AssetBundleMonitor
             _shouldRecord = false;
             EditorPrefs.SetBool(PrefKeyShouldRecord, false); // Clear EditorPrefs
             _currentSession = null;
-            _loadingBundles.Clear();
-            _bundleReferenceCounts.Clear();
+            LoadingBundles.Clear();
+            BundleReferenceCounts.Clear();
         }
 
         private static void OnBundleLoadStart(BundleLoadEventArgs args)
@@ -212,12 +194,12 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 dependencies = args.Dependencies != null ? new List<string>(args.Dependencies) : new List<string>()
             };
 
-            if (!_bundleReferenceCounts.ContainsKey(args.BundleName))
-                _bundleReferenceCounts[args.BundleName] = 0;
-            _bundleReferenceCounts[args.BundleName]++;
-            record.referenceCount = _bundleReferenceCounts[args.BundleName];
+            if (!BundleReferenceCounts.ContainsKey(args.BundleName))
+                BundleReferenceCounts[args.BundleName] = 0;
+            BundleReferenceCounts[args.BundleName]++;
+            record.referenceCount = BundleReferenceCounts[args.BundleName];
 
-            _loadingBundles[args.BundleName] = record;
+            LoadingBundles[args.BundleName] = record;
         }
 
         private static void OnBundleLoadSuccess(BundleLoadEventArgs args)
@@ -225,7 +207,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
             if (!_shouldRecord)
                 return;
             CreateSession();
-            if (_loadingBundles.TryGetValue(args.BundleName, out var record))
+            if (LoadingBundles.TryGetValue(args.BundleName, out var record))
             {
                 record.loadEndTime = args.EndTime;
                 record.loadDuration = (record.loadEndTime - record.loadStartTime).TotalMilliseconds;
@@ -233,7 +215,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 record.bundleSize = args.BundleSize;
 
                 _currentSession.records.Add(record);
-                _loadingBundles.Remove(args.BundleName);
+                LoadingBundles.Remove(args.BundleName);
                 
                 _currentFrameLoadedCount++;
             }
@@ -245,7 +227,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
             if (!_shouldRecord)
                 return;
             CreateSession();
-            if (_loadingBundles.TryGetValue(args.BundleName, out var record))
+            if (LoadingBundles.TryGetValue(args.BundleName, out var record))
             {
                 record.loadEndTime = args.EndTime;
                 record.loadDuration = (record.loadEndTime - record.loadStartTime).TotalMilliseconds;
@@ -253,17 +235,17 @@ namespace OneAsset.Editor.AssetBundleMonitor
                 record.errorMessage = args.ErrorMessage;
 
                 _currentSession.records.Add(record);
-                _loadingBundles.Remove(args.BundleName);
+                LoadingBundles.Remove(args.BundleName);
             }
         }
 
         private static void OnBundleUnload(string bundleName)
         {
-            if (_bundleReferenceCounts.ContainsKey(bundleName))
+            if (BundleReferenceCounts.ContainsKey(bundleName))
             {
-                _bundleReferenceCounts[bundleName]--;
-                if (_bundleReferenceCounts[bundleName] <= 0)
-                    _bundleReferenceCounts.Remove(bundleName);
+                BundleReferenceCounts[bundleName]--;
+                if (BundleReferenceCounts[bundleName] <= 0)
+                    BundleReferenceCounts.Remove(bundleName);
                 
                 if (_shouldRecord)
                     _currentFrameUnloadedCount++;
@@ -272,7 +254,7 @@ namespace OneAsset.Editor.AssetBundleMonitor
 
         public static int GetBundleReferenceCount(string bundleName)
         {
-            return _bundleReferenceCounts.TryGetValue(bundleName, out var count) ? count : 0;
+            return BundleReferenceCounts.TryGetValue(bundleName, out var count) ? count : 0;
         }
 
         public static List<AssetBundleRecord> GetAllRecords()

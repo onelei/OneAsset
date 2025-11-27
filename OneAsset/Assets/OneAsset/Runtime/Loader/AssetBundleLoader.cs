@@ -4,27 +4,11 @@ using System.Threading;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using OneAsset.Runtime.Manifest;
+using OneAsset.Runtime.Monitor;
 using OneAsset.Runtime.Rule;
 
 namespace OneAsset.Runtime.Loader
 {
-    /// <summary>
-    /// Bundle load event data
-    /// </summary>
-    public class BundleLoadEventArgs
-    {
-        public string BundleName { get; set; }
-        public string PackageName { get; set; }
-        public string AssetAddress { get; set; }
-        public string AssetPath { get; set; }
-        public List<string> Dependencies { get; set; }
-        public bool IsAsync { get; set; }
-        public long BundleSize { get; set; }
-        public string ErrorMessage { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime EndTime { get; set; }
-    }
-
     public class AssetBundleLoader : ILoader
     {
         private readonly Dictionary<string, BundleData> _loadedBundles = new Dictionary<string, BundleData>();
@@ -36,12 +20,6 @@ namespace OneAsset.Runtime.Loader
             _packageName = packageName;
             _encryptRule = encryptRule;
         }
-
-        // Events for monitoring
-        public static event Action<BundleLoadEventArgs> OnBundleLoadStart;
-        public static event Action<BundleLoadEventArgs> OnBundleLoadSuccess;
-        public static event Action<BundleLoadEventArgs> OnBundleLoadFailed;
-        public static event Action<string> OnBundleUnload;
 
 
         private BundleInfo GetBundleInfoByAddress(string address)
@@ -67,9 +45,9 @@ namespace OneAsset.Runtime.Loader
 
 
         /// <summary>
-        /// 加载资源（泛型接口）
+        /// Load asset (generic interface)
         /// </summary>
-        /// <param name="address">资源地址</param>
+        /// <param name="address">Asset address</param>
         public T LoadAsset<T>(string address) where T : UnityEngine.Object
         {
             var bundleInfo = GetBundleInfoByAddress(address);
@@ -79,13 +57,13 @@ namespace OneAsset.Runtime.Loader
                 return default(T);
             }
 
-            // 1. 加载依赖
+            // 1. Load dependencies
             LoadDependencies(bundleInfo);
 
-            // 2. 加载目标包
+            // 2. Load target bundle
             var bundleData = LoadBundleInternal(bundleInfo, address);
 
-            // 3. 从包中加载资源
+            // 3. Load asset from bundle
             if (bundleData != null && bundleData.Bundle != null)
             {
                 var assetPath = bundleInfo.GetAssetPath(address);
@@ -96,7 +74,7 @@ namespace OneAsset.Runtime.Loader
         }
 
         /// <summary>
-        /// 异步加载资源
+        /// Load asset asynchronously
         /// </summary>
         public async UniTaskVoid LoadAssetAsync<T>(string address, Action<T> onComplete) where T : UnityEngine.Object
         {
@@ -108,13 +86,13 @@ namespace OneAsset.Runtime.Loader
                 return;
             }
 
-            // 1. 加载依赖
+            // 1. Load dependencies
             await LoadDependenciesAsync(bundleInfo);
 
-            // 2. 加载目标包
+            // 2. Load target bundle
             var bundleData = await LoadBundleInternalAsync(bundleInfo, address);
 
-            // 3. 从包中加载资源
+            // 3. Load asset from bundle
             if (bundleData != null && bundleData.Bundle != null)
             {
                 var assetPath = bundleInfo.GetAssetPath(address);
@@ -128,7 +106,7 @@ namespace OneAsset.Runtime.Loader
         }
 
         /// <summary>
-        /// 卸载资源包
+        /// Unload asset bundle
         /// </summary>
         public void UnloadAsset(string address, bool unloadAllLoadedObjects = true)
         {
@@ -144,143 +122,128 @@ namespace OneAsset.Runtime.Loader
         }
         
         /// <summary>
-        /// 加载单个AB包（包含引用计数逻辑）
+        /// Load a single AssetBundle (with reference counting logic)
         /// </summary>
         private BundleData LoadBundleInternal(BundleInfo bundleInfo, string address = "")
         {
             var bundleName = bundleInfo.name;
-            // 检查是否已加载
+            // Check if already loaded
             if (_loadedBundles.TryGetValue(bundleName, out BundleData data))
             {
-                data.RefCount++; // 引用计数 +1
+                data.RefCount++; // Increment reference count
                 return data;
             }
 
-            // 触发加载开始事件
-            var eventArgs = new BundleLoadEventArgs
-            {
-                BundleName = bundleName,
-                PackageName = _packageName,
-                AssetAddress = address,
-                AssetPath = bundleInfo.GetAssetPath(address) ?? "",
-                Dependencies = bundleInfo.depends ?? new List<string>(),
-                IsAsync = false,
-                StartTime = DateTime.Now
-            };
+            // Record load start
+            var assetPath = bundleInfo.GetAssetPath(address) ?? "";
+            var dependencies = bundleInfo.depends ?? new List<string>();
+            var startTime = DateTime.Now;
+            
+            AssetBundleMonitor.RecordLoadStart(bundleName, _packageName, address, assetPath, dependencies, false);
 
-            OnBundleLoadStart?.Invoke(eventArgs);
-
-            // 真实加载
+            // Actual loading
             var bundlePath = GetAssetBundlePath(bundleName);
             var bundle = _encryptRule.Decrypt(bundlePath, bundleInfo.crc);
 
-            eventArgs.EndTime = DateTime.Now;
-
             if (bundle == null)
             {
-                eventArgs.ErrorMessage = $"Failed to load bundle from path: {bundlePath}";
-                OnBundleLoadFailed?.Invoke(eventArgs);
+                var errorMessage = $"Failed to load bundle from path: {bundlePath}";
+                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, false, startTime, errorMessage);
                 OneAssetLogger.LogError($"Failed to load bundle: {bundleName}");
                 return null;
             }
 
             BundleData newData = new BundleData(bundleName, bundle);
-            newData.RefCount++; // 初始引用为1
+            newData.RefCount++; // Initial reference count is 1
             _loadedBundles.Add(bundleName, newData);
 
-            // 记录文件大小
+            // Record file size
+            long bundleSize = 0;
             try
             {
                 var fileInfo = new System.IO.FileInfo(bundlePath);
-                eventArgs.BundleSize = fileInfo.Length;
+                bundleSize = fileInfo.Length;
             }
             catch
             {
                 // Ignore file info errors
             }
 
-            OnBundleLoadSuccess?.Invoke(eventArgs);
+            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, false, startTime, bundleSize);
 
             return newData;
         }
 
         /// <summary>
-        /// 异步加载单个AB包（包含引用计数逻辑）
+        /// Load a single AssetBundle asynchronously (with reference counting logic)
         /// </summary>
         private async UniTask<BundleData> LoadBundleInternalAsync(BundleInfo bundleInfo, string address = null,
             CancellationToken cancellationToken = default)
         {
             var bundleName = bundleInfo.name;
-            // 检查是否已加载
+            // Check if already loaded
             if (_loadedBundles.TryGetValue(bundleName, out BundleData data))
             {
-                data.RefCount++; // 引用计数 +1
+                data.RefCount++; // Increment reference count
                 return data;
             }
 
-            // 触发加载开始事件
-            var eventArgs = new BundleLoadEventArgs
-            {
-                BundleName = bundleName,
-                PackageName = _packageName,
-                AssetAddress = address,
-                AssetPath = bundleInfo.GetAssetPath(address) ?? "",
-                Dependencies = bundleInfo.depends ?? new List<string>(),
-                IsAsync = true,
-                StartTime = DateTime.Now
-            };
+            // Record load start
+            var assetPath = bundleInfo.GetAssetPath(address) ?? "";
+            var dependencies = bundleInfo.depends ?? new List<string>();
+            var startTime = DateTime.Now;
+            
+            AssetBundleMonitor.RecordLoadStart(bundleName, _packageName, address, assetPath, dependencies, true);
 
-            OnBundleLoadStart?.Invoke(eventArgs);
-
-            // 真实加载
+            // Actual loading
             var bundlePath = GetAssetBundlePath(bundleName);
             var request = _encryptRule.DecryptAsync(bundlePath, bundleInfo.crc);
             await request.ToUniTask(cancellationToken: cancellationToken);
             var bundle = request.assetBundle;
-            eventArgs.EndTime = DateTime.Now;
 
             if (bundle == null)
             {
-                eventArgs.ErrorMessage = $"AssetBundle.LoadFromFileAsync returned null, path: {bundlePath}";
-                OnBundleLoadFailed?.Invoke(eventArgs);
+                var errorMessage = $"AssetBundle.LoadFromFileAsync returned null, path: {bundlePath}";
+                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, true, startTime, errorMessage);
                 OneAssetLogger.LogError($"Failed to load bundle: {bundleName}");
                 return null;
             }
 
             BundleData newData = new BundleData(bundleName, bundle);
-            newData.RefCount++; // 初始引用为1
+            newData.RefCount++; // Initial reference count is 1
             _loadedBundles.Add(bundleName, newData);
 
-            // 记录文件大小
+            // Record file size
+            long bundleSize = 0;
             try
             {
                 var fileInfo = new System.IO.FileInfo(bundlePath);
-                eventArgs.BundleSize = fileInfo.Length;
+                bundleSize = fileInfo.Length;
             }
             catch
             {
                 // Ignore file info errors
             }
 
-            OnBundleLoadSuccess?.Invoke(eventArgs);
+            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, true, startTime, bundleSize);
 
             return newData;
         }
 
         /// <summary>
-        /// 递归加载依赖
+        /// Recursively load dependencies
         /// </summary>
         private void LoadDependencies(BundleInfo bundleInfo)
         {
             foreach (var dep in bundleInfo.depends)
             {
                 var dependBundleInfo = GetBundleInfoByBundleName(dep);
-                LoadBundleInternal(dependBundleInfo); // 依赖包的引用计数也会增加
+                LoadBundleInternal(dependBundleInfo); // Reference count of dependency bundles will also increase
             }
         }
 
         /// <summary>
-        /// 异步递归加载依赖
+        /// Recursively load dependencies asynchronously
         /// </summary>
         private async UniTask LoadDependenciesAsync(BundleInfo bundleInfo,
             CancellationToken cancellationToken = default)
@@ -288,36 +251,36 @@ namespace OneAsset.Runtime.Loader
             foreach (var bundleName in bundleInfo.depends)
             {
                 var dependBundleInfo = GetBundleInfoByBundleName(bundleName);
-                await LoadBundleInternalAsync(dependBundleInfo, string.Empty, cancellationToken); // 依赖包的引用计数也会增加
+                await LoadBundleInternalAsync(dependBundleInfo, string.Empty, cancellationToken); // Reference count of dependency bundles will also increase
             }
         }
 
         /// <summary>
-        /// 卸载逻辑（包含引用计数逻辑）
+        /// Unload logic (with reference counting logic)
         /// </summary>
         private void UnloadBundleInternal(string bundleName, bool unloadAllLoadedObjects = true)
         {
             if (!_loadedBundles.TryGetValue(bundleName, out BundleData bundleData))
                 return;
 
-            bundleData.RefCount--; // 引用计数 -1
+            bundleData.RefCount--; // Decrement reference count
 
-            // 如果引用归零，执行真卸载
+            // If reference count reaches zero, perform actual unload
             if (bundleData.RefCount <= 0)
             {
-                // 1. 先处理依赖项的卸载（递归减少依赖包的计数）
+                // 1. First handle unloading of dependencies (recursively decrease dependency bundle counts)
                 var bundleInfo = GetBundleInfoByBundleName(bundleName);
                 foreach (var dep in bundleInfo.depends)
                 {
                     UnloadBundleInternal(dep, unloadAllLoadedObjects);
                 }
 
-                // 2. 卸载自身
-                bundleData.Unload(unloadAllLoadedObjects); // true表示卸载从该包加载的所有Object，慎用，根据需求可能填false
+                // 2. Unload itself
+                bundleData.Unload(unloadAllLoadedObjects); // true means unload all Objects loaded from this bundle, use with caution, may use false depending on requirements
                 _loadedBundles.Remove(bundleName);
 
                 OneAssetLogger.Log($"Bundle Unloaded: {bundleName}");
-                OnBundleUnload?.Invoke(bundleName);
+                AssetBundleMonitor.RecordUnload(bundleName);
             }
         }
     }

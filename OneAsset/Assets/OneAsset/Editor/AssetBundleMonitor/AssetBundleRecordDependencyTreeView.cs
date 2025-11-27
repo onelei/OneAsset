@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+using OneAsset.Runtime.Loader;
 
 namespace OneAsset.Editor.AssetBundleMonitor
 {
