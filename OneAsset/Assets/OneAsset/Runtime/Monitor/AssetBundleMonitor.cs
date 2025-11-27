@@ -42,7 +42,7 @@ namespace OneAsset.Runtime.Monitor
         public bool isAsync;
         public string loadType;
         public int frameIndex;
-        
+
         public string GetLoadDurationReadable()
         {
             if (loadDuration < 1000)
@@ -50,7 +50,7 @@ namespace OneAsset.Runtime.Monitor
             else
                 return $"{loadDuration / 1000.0:F2}s";
         }
-        
+
         public string GetBundleSizeReadable()
         {
             if (bundleSize < 1024)
@@ -73,7 +73,7 @@ namespace OneAsset.Runtime.Monitor
         public int loadedCount;
         public int unloadedCount;
     }
-    
+
     /// <summary>
     /// Monitor session data
     /// </summary>
@@ -85,14 +85,14 @@ namespace OneAsset.Runtime.Monitor
         public bool isRecording;
         public List<AssetBundleRecord> records = new List<AssetBundleRecord>();
         public List<ProfilerFrameData> profilerData = new List<ProfilerFrameData>();
-        
+
         public double GetSessionDuration()
         {
             if (isRecording)
                 return (DateTime.Now - sessionStartTime).TotalSeconds;
             return (sessionEndTime - sessionStartTime).TotalSeconds;
         }
-        
+
         public int GetSuccessCount()
         {
             int count = 0;
@@ -101,14 +101,15 @@ namespace OneAsset.Runtime.Monitor
                 if (record.loadSuccess)
                     count++;
             }
+
             return count;
         }
-        
+
         public int GetFailedCount()
         {
             return records.Count - GetSuccessCount();
         }
-        
+
         public long GetTotalLoadedSize()
         {
             long total = 0;
@@ -117,6 +118,7 @@ namespace OneAsset.Runtime.Monitor
                 if (record.loadSuccess)
                     total += record.bundleSize;
             }
+
             return total;
         }
     }
@@ -136,7 +138,7 @@ namespace OneAsset.Runtime.Monitor
         /// <summary>
         /// Record the start of a bundle load operation
         /// </summary>
-        public static void RecordLoadStart(string bundleName, string packageName, string assetAddress, 
+        public static void RecordLoadStart(string bundleName, string packageName, string assetAddress,
             string assetPath, List<string> dependencies, bool isAsync)
         {
             var args = new BundleLoadEventArgs
@@ -156,8 +158,20 @@ namespace OneAsset.Runtime.Monitor
         /// Record a successful bundle load
         /// </summary>
         public static void RecordLoadSuccess(string bundleName, string packageName, string assetAddress,
-            string assetPath, List<string> dependencies, bool isAsync, DateTime startTime, long bundleSize)
+            string assetPath, List<string> dependencies, bool isAsync, DateTime startTime, string bundlePath)
         {
+            // Record file size
+            long bundleSize = 0;
+            try
+            {
+                var fileInfo = new System.IO.FileInfo(bundlePath);
+                bundleSize = fileInfo.Length;
+            }
+            catch
+            {
+                // Ignore file info errors
+            }
+
             var args = new BundleLoadEventArgs
             {
                 BundleName = bundleName,
@@ -203,4 +217,3 @@ namespace OneAsset.Runtime.Monitor
         }
     }
 }
-

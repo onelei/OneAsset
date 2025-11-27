@@ -20,8 +20,7 @@ namespace OneAsset.Runtime.Loader
             _packageName = packageName;
             _encryptRule = encryptRule;
         }
-
-
+        
         private BundleInfo GetBundleInfoByAddress(string address)
         {
             return VirtualManifest.Default.TryGetBundleInfoByAddress(address, out var bundleInfo) ? bundleInfo : null;
@@ -120,7 +119,7 @@ namespace OneAsset.Runtime.Loader
             var bundleName = bundleInfo.name;
             UnloadBundleInternal(bundleName, unloadAllLoadedObjects);
         }
-        
+
         /// <summary>
         /// Load a single AssetBundle (with reference counting logic)
         /// </summary>
@@ -138,7 +137,7 @@ namespace OneAsset.Runtime.Loader
             var assetPath = bundleInfo.GetAssetPath(address) ?? "";
             var dependencies = bundleInfo.depends ?? new List<string>();
             var startTime = DateTime.Now;
-            
+
             AssetBundleMonitor.RecordLoadStart(bundleName, _packageName, address, assetPath, dependencies, false);
 
             // Actual loading
@@ -148,7 +147,8 @@ namespace OneAsset.Runtime.Loader
             if (bundle == null)
             {
                 var errorMessage = $"Failed to load bundle from path: {bundlePath}";
-                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, false, startTime, errorMessage);
+                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, false,
+                    startTime, errorMessage);
                 OneAssetLogger.LogError($"Failed to load bundle: {bundleName}");
                 return null;
             }
@@ -156,21 +156,8 @@ namespace OneAsset.Runtime.Loader
             BundleData newData = new BundleData(bundleName, bundle);
             newData.RefCount++; // Initial reference count is 1
             _loadedBundles.Add(bundleName, newData);
-
-            // Record file size
-            long bundleSize = 0;
-            try
-            {
-                var fileInfo = new System.IO.FileInfo(bundlePath);
-                bundleSize = fileInfo.Length;
-            }
-            catch
-            {
-                // Ignore file info errors
-            }
-
-            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, false, startTime, bundleSize);
-
+            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, false,
+                startTime, bundlePath);
             return newData;
         }
 
@@ -192,7 +179,7 @@ namespace OneAsset.Runtime.Loader
             var assetPath = bundleInfo.GetAssetPath(address) ?? "";
             var dependencies = bundleInfo.depends ?? new List<string>();
             var startTime = DateTime.Now;
-            
+
             AssetBundleMonitor.RecordLoadStart(bundleName, _packageName, address, assetPath, dependencies, true);
 
             // Actual loading
@@ -204,7 +191,8 @@ namespace OneAsset.Runtime.Loader
             if (bundle == null)
             {
                 var errorMessage = $"AssetBundle.LoadFromFileAsync returned null, path: {bundlePath}";
-                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, true, startTime, errorMessage);
+                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, true,
+                    startTime, errorMessage);
                 OneAssetLogger.LogError($"Failed to load bundle: {bundleName}");
                 return null;
             }
@@ -212,21 +200,8 @@ namespace OneAsset.Runtime.Loader
             BundleData newData = new BundleData(bundleName, bundle);
             newData.RefCount++; // Initial reference count is 1
             _loadedBundles.Add(bundleName, newData);
-
-            // Record file size
-            long bundleSize = 0;
-            try
-            {
-                var fileInfo = new System.IO.FileInfo(bundlePath);
-                bundleSize = fileInfo.Length;
-            }
-            catch
-            {
-                // Ignore file info errors
-            }
-
-            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, true, startTime, bundleSize);
-
+            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, true,
+                startTime, bundlePath);
             return newData;
         }
 
@@ -251,7 +226,8 @@ namespace OneAsset.Runtime.Loader
             foreach (var bundleName in bundleInfo.depends)
             {
                 var dependBundleInfo = GetBundleInfoByBundleName(bundleName);
-                await LoadBundleInternalAsync(dependBundleInfo, string.Empty, cancellationToken); // Reference count of dependency bundles will also increase
+                await LoadBundleInternalAsync(dependBundleInfo, string.Empty,
+                    cancellationToken); // Reference count of dependency bundles will also increase
             }
         }
 
@@ -276,7 +252,8 @@ namespace OneAsset.Runtime.Loader
                 }
 
                 // 2. Unload itself
-                bundleData.Unload(unloadAllLoadedObjects); // true means unload all Objects loaded from this bundle, use with caution, may use false depending on requirements
+                bundleData.Unload(
+                    unloadAllLoadedObjects); // true means unload all Objects loaded from this bundle, use with caution, may use false depending on requirements
                 _loadedBundles.Remove(bundleName);
 
                 OneAssetLogger.Log($"Bundle Unloaded: {bundleName}");
