@@ -27,7 +27,7 @@ namespace OneAsset.Samples
         {
             //Init
             OneAssets.SetPlayMode(playMode);
-            OneAssets.SetPackage(new OneAssetPackage("Bundles", new OffsetEncryptRule()));
+            OneAssets.AddPackage(new OneAssetPackage("Bundles", new OffsetEncryptRule()));
             //Sync
             var prefabAsset = OneAssets.LoadAsset<GameObject>(assetPath);
             _uiSample = Instantiate(prefabAsset, transform, false);

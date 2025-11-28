@@ -61,6 +61,8 @@ namespace OneAsset.Runtime.Manifest
         private static readonly Dictionary<string, List<string>> AllDependenceCache =
             new Dictionary<string, List<string>>();
 
+        public bool ContainsAddress(string address) => AddressToBundleInfos.ContainsKey(address);
+
         public bool TryGetBundleInfoByAddress(string address, out BundleInfo bundleInfo) =>
             AddressToBundleInfos.TryGetValue(address, out bundleInfo);
 

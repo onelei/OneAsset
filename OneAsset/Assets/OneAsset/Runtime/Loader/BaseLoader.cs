@@ -21,6 +21,11 @@ namespace OneAsset.Runtime.Loader
         {
             return _virtualManifest ?? (_virtualManifest = VirtualManifest.Load(PackageName));
         }
+        
+        public virtual bool ContainsAsset(string address)
+        {
+            return GetVirtualManifest().ContainsAddress(address);
+        }
 
         public virtual T LoadAsset<T>(string address) where T : UnityEngine.Object
         {

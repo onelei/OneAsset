@@ -6,31 +6,36 @@ namespace OneAsset.Runtime
 {
     public class OneAssetPackage
     {
-        private readonly string _packageName;
+        public readonly string PackageName;
         private readonly IEncryptRule _encryptRule;
         private ILoader _loader;
 
         public OneAssetPackage(string packageName, IEncryptRule encryptRule)
         {
-            _packageName = packageName;
+            PackageName = packageName;
             _encryptRule = encryptRule;
             InitializeLoader();
         }
 
         private void InitializeLoader()
         {
-#if UNITY_EDITOR
-            if (OneAssets.GetPlayMode() == EPlayMode.AssetBundle)
+            var playMode = OneAssets.GetPlayMode();
+#if !UNITY_EDITOR
+            playMode = EPlayMode.AssetBundle;
+#endif
+            if (playMode == EPlayMode.AssetBundle)
             {
-                _loader = new AssetBundleLoader(_packageName, _encryptRule);
+                _loader = new AssetBundleLoader(PackageName, _encryptRule);
             }
             else
             {
-                _loader = new AssetDatabaseLoader(_packageName, _encryptRule);
+                _loader = new AssetDatabaseLoader(PackageName, _encryptRule);
             }
-#else
-            _loader = new AssetBundleLoader(_packageName, _encryptRule);
-#endif
+        }
+        
+        public bool ContainsAsset(string assetPath)
+        {
+            return _loader.ContainsAsset(assetPath);
         }
 
         public T LoadAsset<T>(string assetPath) where T : UnityEngine.Object
