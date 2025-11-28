@@ -72,17 +72,22 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         private BuildReportData CreateBuildReport(AssetBundleBuilderPackage builderPackage, 
             UnityEngine.AssetBundleManifest manifest, VirtualManifest customManifest)
         {
-            var buildReport = new BuildReportData();
-            
+            var buildReport = new BuildReportData
+            {
+                summary =
+                {
+                    packageName = builderPackage.packageName,
+                    buildTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    buildDuration = _stopwatch.Elapsed.TotalSeconds,
+                    buildTarget = builderPackage.GetBuildTarget().ToString(),
+                    buildMode = builderPackage.buildMode.ToString(),
+                    compressMode = builderPackage.compressMode.ToString(),
+                    encryptRule = builderPackage.encryptRule,
+                    outputPath = builderPackage.GetOriginOutputPath()
+                }
+            };
+
             // Fill build information in summary
-            buildReport.summary.packageName = builderPackage.packageName;
-            buildReport.summary.buildTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            buildReport.summary.buildDuration = _stopwatch.Elapsed.TotalSeconds;
-            buildReport.summary.buildTarget = builderPackage.GetBuildTarget().ToString();
-            buildReport.summary.buildMode = builderPackage.buildMode.ToString();
-            buildReport.summary.compressMode = builderPackage.compressMode.ToString();
-            buildReport.summary.encryptRule = builderPackage.encryptRule;
-            buildReport.summary.outputPath = builderPackage.GetOriginOutputPath();
 
             var outputPath = builderPackage.GetOriginOutputPath();
             long totalSize = 0;

@@ -417,7 +417,7 @@ namespace OneAsset.Runtime.Loader
         /// <summary>
         /// Force unload specified bundle (ignoring reference count)
         /// </summary>
-        public void ForceUnloadBundle(string bundleName, bool unloadAllLoadedObjects = true)
+        private void ForceUnloadBundle(string bundleName, bool unloadAllLoadedObjects = true)
         {
             if (!_loadedBundles.TryGetValue(bundleName, out var bundleData))
                 return;

@@ -30,13 +30,11 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
             {
                 OnSelectedChange = RefreshPackage
             };
-        if (_setting.packages.Count > 0)
-        {
+            if (_setting.packages.Count <= 0) return;
             var package = _setting.packages[0];
             //RefreshBuildVersion
             package.buildVersion = package.GetDefaultBuildVersion();
             RefreshPackage(package);
-        }
         }
 
         protected void OnDisable()
@@ -121,6 +119,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Window
             {
                 _encryptRuleTypeIndex = RuleUtility.GetAddressRuleIndex(_package.encryptRule);
             }
+
             _packageTreeView?.SetData(_setting.packages);
         }
 

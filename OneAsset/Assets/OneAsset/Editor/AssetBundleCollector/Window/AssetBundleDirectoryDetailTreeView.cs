@@ -21,7 +21,6 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         private readonly SearchField _searchField;
         private const float Offset = 2;
         private readonly List<TreeViewItem> _items = new List<TreeViewItem>();
-        private readonly Dictionary<int, TreeViewItem> _itemsMap = new Dictionary<int, TreeViewItem>();
         private AssetBundleDirectory _directory;
 
         public AssetBundleDirectoryDetailTreeView() : base(new TreeViewState())
@@ -38,7 +37,6 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                 return;
             _directory = data;
             _items.Clear();
-            _itemsMap.Clear();
             var mainAssets = data.GetMainAssets();
             var rule = data.GetAddressRule();
 
@@ -48,7 +46,6 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                 var id = i + 1;
                 var address = rule.GetAddress(groupName, assetPath);
                 var item = new AssetBundleDirectoryDetailTreeViewItem(id, $"[{address}] {assetPath}");
-                _itemsMap.Add(id, item);
                 _items.Add(item);
             }
 
@@ -58,7 +55,6 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         public override void OnGUI(Rect rect)
         {
             var height = rect.height;
-            var width = rect.width;
             var singleLineHeight = EditorGUIUtility.singleLineHeight;
             //SearchField
             rect.height = singleLineHeight;
