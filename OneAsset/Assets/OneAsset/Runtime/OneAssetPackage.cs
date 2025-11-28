@@ -47,5 +47,10 @@ namespace OneAsset.Runtime
         {
             _loader.UnloadAsset(assetPath);
         }
+
+        public void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true)
+        {
+            _loader.UnloadUnusedBundles(immediate, unloadAllLoadedObjects);
+        }
     }
 }

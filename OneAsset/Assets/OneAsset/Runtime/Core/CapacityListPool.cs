@@ -6,11 +6,11 @@ namespace OneAsset.Runtime.Core
     public class CapacityListPool<T>
     {
         private readonly Stack<List<T>> _pool = new Stack<List<T>>();
-        protected int PoolSize;
+        private readonly int _poolSize;
 
         public CapacityListPool(int poolSize = 256)
         {
-            PoolSize = poolSize;
+            _poolSize = poolSize;
         }
 
         public List<T> Get()
@@ -27,7 +27,7 @@ namespace OneAsset.Runtime.Core
 
             list.Clear();
 
-            if (_pool.Count < PoolSize)
+            if (_pool.Count < _poolSize)
             {
                 _pool.Push(list);
             }

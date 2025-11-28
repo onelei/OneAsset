@@ -1,5 +1,4 @@
 ﻿using System;
-using OneAsset.Runtime.Manifest;
 
 namespace OneAsset.Runtime
 {
@@ -12,33 +11,38 @@ namespace OneAsset.Runtime
     public static class OneAssets
     {
         private static EPlayMode _playMode = EPlayMode.Simulate;
-        private static OneAssetPackage _oneAssetPackage;
+        private static OneAssetPackage _package;
 
-        public static void Init(EPlayMode playMode)
+        public static void SetPlayMode(EPlayMode playMode)
         {
             _playMode = playMode;
         }
-        
-        public static void SetPackage(OneAssetPackage oneAssetPackage)
+
+        public static void SetPackage(OneAssetPackage package)
         {
-            _oneAssetPackage = oneAssetPackage;
+            _package = package;
         }
 
         public static EPlayMode GetPlayMode() => _playMode;
 
         public static T LoadAsset<T>(string assetPath) where T : UnityEngine.Object
         {
-            return _oneAssetPackage.LoadAsset<T>(assetPath);
+            return _package.LoadAsset<T>(assetPath);
         }
 
         public static void LoadAssetAsync<T>(string assetPath, Action<T> onComplete) where T : UnityEngine.Object
         {
-            _oneAssetPackage.LoadAssetAsync<T>(assetPath, onComplete);
+            _package.LoadAssetAsync<T>(assetPath, onComplete);
         }
 
         public static void UnloadAsset(string assetPath)
         {
-            _oneAssetPackage.UnloadAsset(assetPath);
+            _package.UnloadAsset(assetPath);
+        }
+
+        public static void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true)
+        {
+            _package.UnloadUnusedBundles(immediate, unloadAllLoadedObjects);
         }
     }
 }

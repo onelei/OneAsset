@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using OneAsset.Runtime.Core;
 using UnityEngine;
 
 namespace OneAsset.Runtime.Manifest
@@ -23,6 +24,7 @@ namespace OneAsset.Runtime.Manifest
                 _default = JsonUtility.FromJson<VirtualManifest>(json);
                 AddressToBundleInfos.Clear();
                 BundleToBundleInfos.Clear();
+                AllDependenceCache.Clear();
                 foreach (var package in _default.packages)
                 {
                     foreach (var group in package.groups)
@@ -62,6 +64,10 @@ namespace OneAsset.Runtime.Manifest
 
         private static readonly Dictionary<string, BundleInfo> BundleToBundleInfos =
             new Dictionary<string, BundleInfo>();
+
+        // Cache for all dependencies (avoid repeated recursive calculations)
+        private static readonly Dictionary<string, List<string>> AllDependenceCache =
+            new Dictionary<string, List<string>>();
 
         public bool TryGetBundleInfoByAddress(string address, out BundleInfo bundleInfo) =>
             AddressToBundleInfos.TryGetValue(address, out bundleInfo);
@@ -106,15 +112,82 @@ namespace OneAsset.Runtime.Manifest
             return null;
         }
 
-        public List<string> GetAllDependsBundleByAddress(string address)
+        /// <summary>
+        /// Get direct dependencies of a bundle
+        /// </summary>
+        /// <param name="bundleName">Bundle name</param>
+        /// <returns>List of direct dependency bundle names</returns>
+        public List<string> GetDirectDependence(string bundleName)
         {
-            if (AddressToBundleInfos.TryGetValue(address, out var bundleInfo))
+            if (BundleToBundleInfos.TryGetValue(bundleName, out var bundleInfo))
             {
                 return bundleInfo.depends;
             }
 
-            OneAssetLogger.LogError($"Can not get bundle name: {address}");
+            OneAssetLogger.LogError($"Bundle not found: {bundleName}");
             return null;
+        }
+
+        /// <summary>
+        /// Get all dependencies of a bundle (recursive, with caching)
+        /// The returned list is ordered by dependency (dependencies come first to ensure correct load order)
+        /// </summary>
+        /// <param name="bundleName">Bundle name</param>
+        /// <returns>List of all dependency bundle names</returns>
+        public List<string> GetAllDependence(string bundleName)
+        {
+            // Check cache
+            if (AllDependenceCache.TryGetValue(bundleName, out var cachedDeps))
+            {
+                return cachedDeps;
+            }
+
+            // Recursively collect all dependencies
+            var allDeps = new List<string>();
+            // Get HashSet from pool to reduce GC allocations
+            var visited = HashSetPool<string>.Get();
+            try
+            {
+                CollectAllDependencies(bundleName, allDeps, visited);
+            }
+            finally
+            {
+                // Return HashSet to pool for reuse
+                HashSetPool<string>.Release(visited);
+            }
+
+            // Cache the result
+            AllDependenceCache[bundleName] = allDeps;
+            return allDeps;
+        }
+
+        /// <summary>
+        /// Recursively collect all dependencies
+        /// </summary>
+        private void CollectAllDependencies(string bundleName, List<string> result, HashSet<string> visited)
+        {
+            if (!BundleToBundleInfos.TryGetValue(bundleName, out var bundleInfo))
+                return;
+
+            foreach (var dep in bundleInfo.depends)
+            {
+                if (!visited.Contains(dep))
+                {
+                    visited.Add(dep);
+                    // Recursively collect dependencies of dependencies first (ensure correct load order)
+                    CollectAllDependencies(dep, result, visited);
+                    // Then add itself
+                    result.Add(dep);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clear dependency cache (typically called when manifest is reloaded)
+        /// </summary>
+        public static void ClearDependenceCache()
+        {
+            AllDependenceCache.Clear();
         }
     }
 

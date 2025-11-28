@@ -10,5 +10,7 @@ namespace OneAsset.Runtime.Loader
         UniTaskVoid LoadAssetAsync<T>(string address, Action<T> onComplete) where T : UnityEngine.Object;
 
         void UnloadAsset(string address, bool unloadAllLoadedObjects = false);
+
+        void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true);
     }
 }

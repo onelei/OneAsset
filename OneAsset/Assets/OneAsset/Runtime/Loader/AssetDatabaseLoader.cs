@@ -33,6 +33,10 @@ namespace OneAsset.Runtime.Loader
         public void UnloadAsset(string address, bool unloadAllLoadedObjects = false)
         {
         }
+
+        public void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true)
+        {
+        }
     }
 }
 #endif

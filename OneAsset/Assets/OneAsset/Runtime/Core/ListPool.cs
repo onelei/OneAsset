@@ -4,7 +4,7 @@ namespace OneAsset.Runtime.Core
 {
     public static class ListPool<T>
     {
-        private static readonly CapacityListPool<T> Pool = new CapacityListPool<T>(int.MaxValue);
+        private static readonly CapacityListPool<T> Pool = new CapacityListPool<T>(1024);
 
         public static List<T> Get()
         {
