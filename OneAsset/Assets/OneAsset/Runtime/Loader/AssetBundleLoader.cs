@@ -10,12 +10,12 @@ using OneAsset.Runtime.Rule;
 
 namespace OneAsset.Runtime.Loader
 {
-    public class AssetBundleLoader : ILoader
+    public class AssetBundleLoader : BaseLoader
     {
         private readonly Dictionary<string, BundleData> _loadedBundles = new Dictionary<string, BundleData>();
-        private readonly HashSet<string> _loadingBundles = new HashSet<string>(); // Bundles currently being loaded, used to prevent concurrent duplicate loading
-        private readonly string _packageName;
-        private readonly IEncryptRule _encryptRule;
+
+        // Bundles currently being loaded, used to prevent concurrent duplicate loading
+        private readonly HashSet<string> _loadingBundles = new HashSet<string>();
 
         /// <summary>
         /// Auto release check interval (seconds)
@@ -27,20 +27,18 @@ namespace OneAsset.Runtime.Loader
         /// </summary>
         public float UnusedBundleExpireTime = 60f;
 
-        public AssetBundleLoader(string packageName, IEncryptRule encryptRule)
+        public AssetBundleLoader(string packageName, IEncryptRule encryptRule) : base(packageName, encryptRule)
         {
-            _packageName = packageName;
-            _encryptRule = encryptRule;
         }
 
         private BundleInfo GetBundleInfoByAddress(string address)
         {
-            return VirtualManifest.Default.TryGetBundleInfoByAddress(address, out var bundleInfo) ? bundleInfo : null;
+            return GetVirtualManifest().TryGetBundleInfoByAddress(address, out var bundleInfo) ? bundleInfo : null;
         }
 
         private BundleInfo GetBundleInfoByBundleName(string bundleName)
         {
-            return VirtualManifest.Default.TryGetBundleInfoByBundleName(bundleName, out var bundleInfo)
+            return GetVirtualManifest().TryGetBundleInfoByBundleName(bundleName, out var bundleInfo)
                 ? bundleInfo
                 : null;
         }
@@ -48,9 +46,9 @@ namespace OneAsset.Runtime.Loader
         private string GetAssetBundlePath(string bundleName)
         {
 #if UNITY_EDITOR
-            return $"{OneAssetSetting.GetAssetBundlesRootPath()}/{_packageName}/{bundleName}";
+            return $"{OneAssetSetting.GetAssetBundlesRootPath()}/{PackageName}/{bundleName}";
 #else
-            return $"{Application.streamingAssetsPath}/{OneAssetSetting.GetPlatformFolderForAssetBundles()}/{_packageName}/{bundleName}";
+            return $"{Application.streamingAssetsPath}/{OneAssetSetting.GetPlatformFolderForAssetBundles()}/{PackageName}/{bundleName}";
 #endif
         }
 
@@ -59,7 +57,7 @@ namespace OneAsset.Runtime.Loader
         /// Load asset (generic interface)
         /// </summary>
         /// <param name="address">Asset address</param>
-        public T LoadAsset<T>(string address) where T : UnityEngine.Object
+        public override T LoadAsset<T>(string address)
         {
             var bundleInfo = GetBundleInfoByAddress(address);
             if (bundleInfo == null)
@@ -93,7 +91,7 @@ namespace OneAsset.Runtime.Loader
         /// <summary>
         /// Load asset asynchronously
         /// </summary>
-        public async UniTaskVoid LoadAssetAsync<T>(string address, Action<T> onComplete) where T : UnityEngine.Object
+        public override async UniTaskVoid LoadAssetAsync<T>(string address, Action<T> onComplete)
         {
             var bundleInfo = GetBundleInfoByAddress(address);
             if (bundleInfo == null)
@@ -130,7 +128,7 @@ namespace OneAsset.Runtime.Loader
         /// <summary>
         /// Unload asset bundle
         /// </summary>
-        public void UnloadAsset(string address, bool unloadAllLoadedObjects = true)
+        public override void UnloadAsset(string address, bool unloadAllLoadedObjects = true)
         {
             var bundleInfo = GetBundleInfoByAddress(address);
             if (bundleInfo == null)
@@ -161,16 +159,16 @@ namespace OneAsset.Runtime.Loader
             var dependencies = bundleInfo.depends ?? new List<string>();
             var startTime = DateTime.Now;
 
-            AssetBundleMonitor.RecordLoadStart(bundleName, _packageName, address, assetPath, dependencies, false);
+            AssetBundleMonitor.RecordLoadStart(bundleName, PackageName, address, assetPath, dependencies, false);
 
             // Actual loading
             var bundlePath = GetAssetBundlePath(bundleName);
-            var bundle = _encryptRule.Decrypt(bundlePath, bundleInfo.crc);
+            var bundle = EncryptRule.Decrypt(bundlePath, bundleInfo.crc);
 
             if (bundle == null)
             {
                 var errorMessage = $"Failed to load bundle from path: {bundlePath}";
-                AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies, false,
+                AssetBundleMonitor.RecordLoadFailed(bundleName, PackageName, address, assetPath, dependencies, false,
                     startTime, errorMessage);
                 OneAssetLogger.LogError($"Failed to load bundle: {bundleName}");
                 return null;
@@ -179,7 +177,7 @@ namespace OneAsset.Runtime.Loader
             BundleData newData = new BundleData(bundleName, bundle);
             newData.RefCount++; // Initial reference count is 1
             _loadedBundles.Add(bundleName, newData);
-            AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, false,
+            AssetBundleMonitor.RecordLoadSuccess(bundleName, PackageName, address, assetPath, dependencies, false,
                 startTime, bundlePath);
             return newData;
         }
@@ -229,18 +227,18 @@ namespace OneAsset.Runtime.Loader
                 var dependencies = bundleInfo.depends ?? new List<string>();
                 var startTime = DateTime.Now;
 
-                AssetBundleMonitor.RecordLoadStart(bundleName, _packageName, address, assetPath, dependencies, true);
+                AssetBundleMonitor.RecordLoadStart(bundleName, PackageName, address, assetPath, dependencies, true);
 
                 // Actual loading
                 var bundlePath = GetAssetBundlePath(bundleName);
-                var request = _encryptRule.DecryptAsync(bundlePath, bundleInfo.crc);
+                var request = EncryptRule.DecryptAsync(bundlePath, bundleInfo.crc);
                 await request.ToUniTask(cancellationToken: cancellationToken);
                 var bundle = request.assetBundle;
 
                 if (bundle == null)
                 {
                     var errorMessage = $"AssetBundle.LoadFromFileAsync returned null, path: {bundlePath}";
-                    AssetBundleMonitor.RecordLoadFailed(bundleName, _packageName, address, assetPath, dependencies,
+                    AssetBundleMonitor.RecordLoadFailed(bundleName, PackageName, address, assetPath, dependencies,
                         true,
                         startTime, errorMessage);
                     OneAssetLogger.LogError($"Failed to load bundle: {bundleName}");
@@ -250,7 +248,7 @@ namespace OneAsset.Runtime.Loader
                 BundleData newData = new BundleData(bundleName, bundle);
                 newData.RefCount++; // Initial reference count is 1
                 _loadedBundles.Add(bundleName, newData);
-                AssetBundleMonitor.RecordLoadSuccess(bundleName, _packageName, address, assetPath, dependencies, true,
+                AssetBundleMonitor.RecordLoadSuccess(bundleName, PackageName, address, assetPath, dependencies, true,
                     startTime, bundlePath);
                 return newData;
             }
@@ -267,7 +265,7 @@ namespace OneAsset.Runtime.Loader
         private void LoadDependencies(BundleInfo bundleInfo)
         {
             // Use GetAllDependence to get all dependencies (already ordered correctly for loading, with caching)
-            var allDeps = VirtualManifest.Default.GetAllDependence(bundleInfo.name);
+            var allDeps = GetVirtualManifest().GetAllDependence(bundleInfo.name);
             if (allDeps == null || allDeps.Count == 0) return;
 
             foreach (var dep in allDeps)
@@ -287,7 +285,7 @@ namespace OneAsset.Runtime.Loader
             CancellationToken cancellationToken = default)
         {
             // Use GetAllDependence to get all dependencies (already ordered correctly for loading, with caching)
-            var allDeps = VirtualManifest.Default.GetAllDependence(bundleInfo.name);
+            var allDeps = GetVirtualManifest().GetAllDependence(bundleInfo.name);
             if (allDeps == null || allDeps.Count == 0) return;
 
             foreach (var bundleName in allDeps)
@@ -371,7 +369,7 @@ namespace OneAsset.Runtime.Loader
         /// </param>
         /// <param name="unloadAllLoadedObjects">Whether to also unload all objects loaded from the bundle</param>
         /// <returns>Number of bundles released</returns>
-        public void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true)
+        public override void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true)
         {
             var bundlesToUnload = ListPool<string>.Get();
             var now = DateTime.Now;

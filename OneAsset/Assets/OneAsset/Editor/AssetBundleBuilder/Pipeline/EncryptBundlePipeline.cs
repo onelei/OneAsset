@@ -8,7 +8,6 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         {
             var manifestInfo = pipelineData.CustomVirtualManifest;
             var builderPackage = pipelineData.AssetBundleBuilderPackage;
-            var packageName = builderPackage.packageName;
             var outputPath = builderPackage.GetOriginOutputPath();
             var outputEncryptPath = builderPackage.GetFinalOutputPath();
             if (!Directory.Exists(outputEncryptPath))
@@ -16,28 +15,23 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
                 Directory.CreateDirectory(outputEncryptPath);
             }
 
-            foreach (var package in manifestInfo.packages)
+            var package = manifestInfo.package;
+            foreach (var group in package.groups)
             {
-                if (package.name == packageName)
+                foreach (var bundleAsset in group.bundles)
                 {
-                    foreach (var group in package.groups)
+                    // Read
+                    var assetBundleName = bundleAsset.name;
+                    var path = Path.Combine(outputPath, assetBundleName);
+                    var allBytes = File.ReadAllBytes(path);
+                    if (builderPackage.IsEncryptable())
                     {
-                        foreach (var bundleAsset in group.bundles)
-                        {
-                            // Read
-                            var assetBundleName = bundleAsset.name;
-                            var path = Path.Combine(outputPath, assetBundleName);
-                            var allBytes = File.ReadAllBytes(path);
-                            if (builderPackage.IsEncryptable())
-                            {
-                                allBytes = builderPackage.GetEncryptRule().Encrypt(allBytes);
-                            }
-
-                            // Write
-                            path = Path.Combine(outputEncryptPath, assetBundleName);
-                            File.WriteAllBytes(path, allBytes);
-                        }
+                        allBytes = builderPackage.GetEncryptRule().Encrypt(allBytes);
                     }
+
+                    // Write
+                    path = Path.Combine(outputEncryptPath, assetBundleName);
+                    File.WriteAllBytes(path, allBytes);
                 }
             }
         }

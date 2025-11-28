@@ -33,25 +33,19 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
 
             pipelineData.Manifest = unityManifest;
             //Record depends
-            var manifestInfo = pipelineData.CustomVirtualManifest;
-            foreach (var package in manifestInfo.packages)
+            var package = pipelineData.CustomVirtualManifest.package;
+            package.encryptRule = builderPackage.GetEncryptRuleTypeName();
+            package.compressMode = builderPackage.compressMode.ToString();
+            foreach (var group in package.groups)
             {
-                if (packageName == package.name)
+                foreach (var bundleAsset in group.bundles)
                 {
-                    package.encryptRule = builderPackage.GetEncryptRuleTypeName();
-                    package.compressMode = builderPackage.compressMode.ToString();
-                    foreach (var group in package.groups)
-                    {
-                        foreach (var bundleAsset in group.bundles)
-                        {
-                            var assetBundleName = bundleAsset.name;
-                            bundleAsset.hash = unityManifest.GetAssetBundleHash(assetBundleName).ToString();
-                            BuildPipeline.GetCRCForAssetBundle(Path.Combine(outputPath, assetBundleName), out bundleAsset.crc);
-                            bundleAsset.depends.Clear();
-                            var depends = unityManifest.GetAllDependencies(assetBundleName);
-                            bundleAsset.depends.AddRange(depends);
-                        }
-                    }
+                    var assetBundleName = bundleAsset.name;
+                    bundleAsset.hash = unityManifest.GetAssetBundleHash(assetBundleName).ToString();
+                    BuildPipeline.GetCRCForAssetBundle(Path.Combine(outputPath, assetBundleName), out bundleAsset.crc);
+                    bundleAsset.depends.Clear();
+                    var depends = unityManifest.GetAllDependencies(assetBundleName);
+                    bundleAsset.depends.AddRange(depends);
                 }
             }
         }

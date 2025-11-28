@@ -35,7 +35,7 @@ namespace OneAsset.Samples
             var spriteAsset = OneAssets.LoadAsset<Sprite>(spritePath);
             _uiSample.GetComponent<UISample>().SetIcon(spriteAsset);
 
-            //Delayed 5 frames
+            //Delayed 5 seconds
             StartCoroutine(LoadAssetDelayed());
 
             //Unload

@@ -151,7 +151,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndScrollView();
         }
- 
+
         private void Save()
         {
             //Save 
@@ -170,9 +170,9 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             EditorUtility.SetDirty(builderSetting);
             AssetDatabase.SaveAssets();
             //Save runtime
-            var manifest = new VirtualManifest {time = DateTime.Now.Ticks};
             foreach (var package in _setting.packages)
             {
+                var manifest = new VirtualManifest {time = DateTime.Now.Ticks};
                 var packageInfo = new PackageInfo {name = package.packageName};
                 foreach (var group in package.groups)
                 {
@@ -206,24 +206,30 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
                     packageInfo.groups.Add(groupInfo);
                 }
 
-                manifest.packages.Add(packageInfo);
+                manifest.package = packageInfo;
+                var outputPath = OneAssetSetting.GetManifestPath(packageInfo.name);
+                try
+                {
+                    var dir = Path.GetDirectoryName(outputPath);
+                    if (!Directory.Exists(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+
+                    File.WriteAllText(outputPath, JsonUtility.ToJson(manifest, true));
+                }
+                catch (Exception e)
+                {
+                    OneAssetLogger.LogError(e.Message);
+                }
+                finally
+                {
+                    OneAssetLogger.Log($"Save Successful: {outputPath}");
+                }
             }
 
-            var outputPath = OneAssetSetting.GetManifestPath();
-            try
-            {
-                File.WriteAllText(outputPath, JsonUtility.ToJson(manifest, true));
-            }
-            catch (Exception e)
-            {
-                OneAssetLogger.LogError(e.Message);
-            }
-            finally
-            {
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-                OneAssetLogger.Log($"Save Successful: {outputPath}");
-            }
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
         }
     }
 }

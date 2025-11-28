@@ -14,7 +14,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
     public class BuildReportPipeline : IPipeline
     {
         private Stopwatch _stopwatch;
-        
+
         public void Run(PipelineData pipelineData)
         {
             // Start timing
@@ -22,8 +22,9 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             {
                 _stopwatch = new Stopwatch();
             }
+
             _stopwatch.Start();
-            
+
             var builderPackage = pipelineData.AssetBundleBuilderPackage;
             if (builderPackage == null)
             {
@@ -49,10 +50,10 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             {
                 // Create build report
                 var buildReport = CreateBuildReport(builderPackage, manifest, customManifest);
-                
+
                 // Save report
                 SaveBuildReport(buildReport, builderPackage);
-                
+
                 // Log summary information
                 LogBuildReportSummary(buildReport);
             }
@@ -69,7 +70,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         /// <summary>
         /// Create build report
         /// </summary>
-        private BuildReportData CreateBuildReport(AssetBundleBuilderPackage builderPackage, 
+        private BuildReportData CreateBuildReport(AssetBundleBuilderPackage builderPackage,
             UnityEngine.AssetBundleManifest manifest, VirtualManifest customManifest)
         {
             var buildReport = new BuildReportData
@@ -95,61 +96,56 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             string largestBundle = string.Empty;
 
             // Iterate through all bundles
-            foreach (var package in customManifest.packages)
+            var package = customManifest.package;
+            foreach (var group in package.groups)
             {
-                if (package.name != builderPackage.packageName)
-                    continue;
-
-                foreach (var group in package.groups)
+                foreach (var bundleInfo in group.bundles)
                 {
-                    foreach (var bundleInfo in group.bundles)
+                    var bundleName = bundleInfo.name;
+                    var bundlePath = Path.Combine(outputPath, bundleName);
+
+                    // Get bundle file size
+                    long bundleSize = 0;
+                    if (File.Exists(bundlePath))
                     {
-                        var bundleName = bundleInfo.name;
-                        var bundlePath = Path.Combine(outputPath, bundleName);
+                        var fileInfo = new FileInfo(bundlePath);
+                        bundleSize = fileInfo.Length;
+                    }
 
-                        // Get bundle file size
-                        long bundleSize = 0;
-                        if (File.Exists(bundlePath))
-                        {
-                            var fileInfo = new FileInfo(bundlePath);
-                            bundleSize = fileInfo.Length;
-                        }
+                    // Create bundle report information
+                    var bundleReport = new BundleReportInfo
+                    {
+                        bundleName = bundleName,
+                        bundleHash = bundleInfo.hash,
+                        bundleSize = bundleSize,
+                        bundleSizeReadable = GetReadableFileSize(bundleSize),
+                        assetCount = bundleInfo.assets.Count
+                    };
 
-                        // Create bundle report information
-                        var bundleReport = new BundleReportInfo
+                    // Add dependencies
+                    bundleReport.dependencies.AddRange(bundleInfo.depends);
+
+                    // Add asset information
+                    foreach (var assetInfo in bundleInfo.assets)
+                    {
+                        var assetReport = new AssetReportInfo
                         {
-                            bundleName = bundleName,
-                            bundleHash = bundleInfo.hash,
-                            bundleSize = bundleSize,
-                            bundleSizeReadable = GetReadableFileSize(bundleSize),
-                            assetCount = bundleInfo.assets.Count
+                            address = assetInfo.address,
+                            assetPath = assetInfo.assetPath,
+                            assetGuid = assetInfo.assetGuid,
+                            assetTags = assetInfo.assetTags ?? new System.Collections.Generic.List<string>()
                         };
+                        bundleReport.assets.Add(assetReport);
+                    }
 
-                        // Add dependencies
-                        bundleReport.dependencies.AddRange(bundleInfo.depends);
+                    buildReport.bundles.Add(bundleReport);
 
-                        // Add asset information
-                        foreach (var assetInfo in bundleInfo.assets)
-                        {
-                            var assetReport = new AssetReportInfo
-                            {
-                                address = assetInfo.address,
-                                assetPath = assetInfo.assetPath,
-                                assetGuid = assetInfo.assetGuid,
-                                assetTags = assetInfo.assetTags ?? new System.Collections.Generic.List<string>()
-                            };
-                            bundleReport.assets.Add(assetReport);
-                        }
-
-                        buildReport.bundles.Add(bundleReport);
-
-                        // Update statistics
-                        totalSize += bundleSize;
-                        if (bundleSize > largestSize)
-                        {
-                            largestSize = bundleSize;
-                            largestBundle = bundleName;
-                        }
+                    // Update statistics
+                    totalSize += bundleSize;
+                    if (bundleSize > largestSize)
+                    {
+                        largestSize = bundleSize;
+                        largestBundle = bundleName;
                     }
                 }
             }
@@ -180,7 +176,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
 
             var finalOutputPath = builderPackage.GetFinalOutputPath();
             buildReport.SaveReport(Path.Combine(finalOutputPath, reportFileName));
-            
+
             // Also save a copy of the latest report (for quick access)
             buildReport.SaveReport(Path.Combine(finalOutputPath, "BuildReport_Latest.json"));
         }
@@ -218,6 +214,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
             {
                 count += bundle.assetCount;
             }
+
             return count;
         }
 
@@ -226,10 +223,10 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         /// </summary>
         private string GetReadableFileSize(long bytes)
         {
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            string[] sizes = {"B", "KB", "MB", "GB", "TB"};
             double len = bytes;
             int order = 0;
-            
+
             while (len >= 1024 && order < sizes.Length - 1)
             {
                 order++;
@@ -240,4 +237,3 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         }
     }
 }
-

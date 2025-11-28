@@ -5,9 +5,9 @@ namespace OneAsset.Runtime
 {
     public static class OneAssetSetting
     {
-        public static string GetManifestPath()
+        public static string GetManifestPath(string packageName)
         {
-            return Path.Combine(GetAssetBundlesRootPath(), "OneAssetManifest.json");
+            return Path.Combine(GetAssetBundlesRootPath(), $"{packageName}/{packageName}_Manifest.json");
         }
 
         public static string GetAssetBundlesRootPath()

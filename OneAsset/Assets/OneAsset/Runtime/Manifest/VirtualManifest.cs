@@ -11,44 +11,36 @@ namespace OneAsset.Runtime.Manifest
     {
         public string version;
         public long time;
-        public List<PackageInfo> packages = new List<PackageInfo>();
+        public PackageInfo package = new PackageInfo();
 
-        private static VirtualManifest _default;
-
-        public static VirtualManifest Default
+        public static VirtualManifest Load(string packageName)
         {
-            get
+            var json = File.ReadAllText(OneAssetSetting.GetManifestPath(packageName));
+            var manifest = JsonUtility.FromJson<VirtualManifest>(json);
+            AddressToBundleInfos.Clear();
+            BundleToBundleInfos.Clear();
+            AllDependenceCache.Clear();
+            var package = manifest.package;
+            foreach (var group in package.groups)
             {
-                if (_default != null) return _default;
-                var json = File.ReadAllText(OneAssetSetting.GetManifestPath());
-                _default = JsonUtility.FromJson<VirtualManifest>(json);
-                AddressToBundleInfos.Clear();
-                BundleToBundleInfos.Clear();
-                AllDependenceCache.Clear();
-                foreach (var package in _default.packages)
+                foreach (var bundleAsset in group.bundles)
                 {
-                    foreach (var group in package.groups)
+                    foreach (var assetInfo in bundleAsset.assets)
                     {
-                        foreach (var bundleAsset in group.bundles)
-                        {
-                            foreach (var assetInfo in bundleAsset.assets)
-                            {
-                                bundleAsset.PackageName = package.name;
-                                AddressToBundleInfos.Add(assetInfo.address, bundleAsset);
-                            }
-
-                            BundleToBundleInfos.Add(bundleAsset.name, bundleAsset);
-                        }
+                        bundleAsset.PackageName = package.name;
+                        AddressToBundleInfos.Add(assetInfo.address, bundleAsset);
                     }
-                }
 
-                return _default;
+                    BundleToBundleInfos.Add(bundleAsset.name, bundleAsset);
+                }
             }
+
+            return manifest;
         }
 
         public void Save()
         {
-            var path = OneAssetSetting.GetManifestPath();
+            var path = OneAssetSetting.GetManifestPath(package.name);
 
             if (File.Exists(path))
             {
@@ -74,21 +66,6 @@ namespace OneAsset.Runtime.Manifest
 
         public bool TryGetBundleInfoByBundleName(string bundleName, out BundleInfo bundleInfo) =>
             BundleToBundleInfos.TryGetValue(bundleName, out bundleInfo);
-
-        public bool TryGetEncryptRule(string packageName, out string encryptRule)
-        {
-            foreach (var packageInfo in packages)
-            {
-                if (packageInfo.name == packageName)
-                {
-                    encryptRule = packageInfo.encryptRule;
-                    return true;
-                }
-            }
-
-            encryptRule = null;
-            return false;
-        }
 
         public string GetAssetPathByAddress(string address)
         {

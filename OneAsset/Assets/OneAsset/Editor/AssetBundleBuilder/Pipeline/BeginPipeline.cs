@@ -7,7 +7,7 @@ namespace OneAsset.Editor.AssetBundleBuilder.Pipeline
         public void Run(PipelineData pipelineData)
         {
             //Prepare CustomManifest
-            pipelineData.CustomVirtualManifest = VirtualManifest.Default;
+            pipelineData.CustomVirtualManifest = VirtualManifest.Load(pipelineData.AssetBundleBuilderPackage.packageName);
         }
     }
 }
