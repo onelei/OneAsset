@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   packages:
   - packageName: Bundles
-    buildVersion: 2025-11-25-18-16-15
+    buildVersion: 2025-12-26-11-35-57
     buildMode: 0
     encryptRule: OffsetEncryptRule
-    compressMode: 0
+    compressMode: 1
     nameMode: 0
   - packageName: Raw
     buildVersion: 2025-03-27-16-24-41

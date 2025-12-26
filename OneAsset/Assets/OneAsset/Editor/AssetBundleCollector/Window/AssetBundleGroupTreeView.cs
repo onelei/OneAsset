@@ -54,6 +54,19 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             }
 
             Reload();
+            
+            // The first item is automatically selected and the change is triggered, creating a chain reaction.
+            if (_items.Count > 0)
+            {
+                SetSelection(new List<int> { _items[0].id });
+                SelectedGroup = ((AssetBundleGroupTreeViewItem)_items[0]).data;
+                OnSelectedChange?.Invoke(SelectedGroup);
+            }
+            else
+            {
+                SelectedGroup = null;
+                OnSelectedChange?.Invoke(null);
+            }
         }
 
         public override void OnGUI(Rect rect)

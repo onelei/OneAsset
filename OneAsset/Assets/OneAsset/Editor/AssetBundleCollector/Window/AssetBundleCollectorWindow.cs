@@ -47,10 +47,7 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
             {
                 OnSelectedChange = (group) =>
                 {
-                    if (group != null)
-                    {
-                        _directoryTreeView.SetData(group);
-                    }
+                    _directoryTreeView.SetData(group);
                 }
             };
             _directoryTreeView = new AssetBundleDirectoryTreeView();

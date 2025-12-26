@@ -73,12 +73,15 @@ namespace OneAsset.Editor.AssetBundleCollector.Window
         {
             _group = data;
             _items.Clear();
-            for (var i = 0; i < _group.directories.Count; i++)
+            if (_group != null)
             {
-                var package = _group.directories[i];
-                var id = i + 1;
-                var item = new AssetBundleDirectoryTreeViewItem(id, _group.groupName, package);
-                _items.Add(item);
+                for (var i = 0; i < _group.directories.Count; i++)
+                {
+                    var package = _group.directories[i];
+                    var id = i + 1;
+                    var item = new AssetBundleDirectoryTreeViewItem(id, _group.groupName, package);
+                    _items.Add(item);
+                }
             }
 
             Reload();
