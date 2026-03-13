@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace OneAsset.Runtime
 {
@@ -16,7 +15,7 @@ namespace OneAsset.Runtime
         private static readonly Dictionary<string, OneAssetPackage>
             Packages = new Dictionary<string, OneAssetPackage>();
 
-        public static void SetPlayMode(EPlayMode playMode)
+        public static void Initialize(EPlayMode playMode)
         {
             _playMode = playMode;
         }
@@ -26,40 +25,17 @@ namespace OneAsset.Runtime
             Packages[package.PackageName] = package;
         }
 
+        public static OneAssetPackage GetPackage(string packageName)
+        {
+            return Packages[packageName];
+        }
+
+        public static bool TryGetPackage(string packageName, out OneAssetPackage package)
+        {
+            return Packages.TryGetValue(packageName, out package);
+        }
+
         public static EPlayMode GetPlayMode() => _playMode;
-
-        private static OneAssetPackage GetPackageByAssetPath(string assetPath)
-        {
-            using (var tor = Packages.GetEnumerator())
-            {
-                while (tor.MoveNext())
-                {
-                    var package = tor.Current.Value;
-                    if (package.ContainsAsset(assetPath))
-                    {
-                        return package;
-                    }
-                }
-            }
-
-            OneAssetLogger.LogError($"Asset not found: {assetPath}");
-            return null;
-        }
-
-        public static T LoadAsset<T>(string assetPath) where T : UnityEngine.Object
-        {
-            return GetPackageByAssetPath(assetPath).LoadAsset<T>(assetPath);
-        }
-
-        public static void LoadAssetAsync<T>(string assetPath, Action<T> onComplete) where T : UnityEngine.Object
-        {
-            GetPackageByAssetPath(assetPath).LoadAssetAsync<T>(assetPath, onComplete);
-        }
-
-        public static void UnloadAsset(string assetPath)
-        {
-            GetPackageByAssetPath(assetPath).UnloadAsset(assetPath);
-        }
 
         public static void UnloadUnusedBundles(bool immediate = false, bool unloadAllLoadedObjects = true)
         {
